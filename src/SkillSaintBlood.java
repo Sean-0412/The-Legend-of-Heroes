@@ -1,3 +1,5 @@
+package src;
+
 public class SkillSaintBlood extends Skill {
     SkillSaintBlood() {
         super("聖依血", "將敵人血量扣到1", 20);

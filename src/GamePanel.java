@@ -1,3 +1,5 @@
+package src;
+
 import javax.swing.*;
 import javax.imageio.ImageIO;
 import java.awt.*;
@@ -74,9 +76,6 @@ class GamePanel extends JPanel implements ActionListener, KeyListener, MouseList
     private Skill selectedSkill = null; // 當前選擇的戰技（null 表示普通攻擊）
     private String selectingTargetMode = "";  // 目標選擇模式: "", "attack", "skill", "potion"
     private String selectingPotionType = "";  // 選擇的藥物類型: "small" 或 "large"（在potion模式中使用）
-    private boolean selectingPotionMode = false;  // 是否在選擇藥水種類的菜單中
-    private Rectangle potionSmallRect;  // 小藥按鈕區域
-    private Rectangle potionLargeRect;  // 大藥按鈕區域
     private int targetingEnemyIndex = -1;  // 目標敵人的索引，用於動畫調整
     private int currentAttackingEnemyIndex = -1;  // 當前攻擊敵人的索引（敵人攻擊時使用）
     private boolean enemyAttackTargetIsPlayer = true;  // 敵人本次攻擊是否以玩家為目標
@@ -85,7 +84,6 @@ class GamePanel extends JPanel implements ActionListener, KeyListener, MouseList
     private int[] battleScreenEnemyX = new int[10];  // 敵人在戰鬥螢幕上的X坐標（支持最多10個敵人）
     private int[] battleScreenEnemyY = new int[10];  // 敵人在戰鬥螢幕上的Y坐標（支持最多10個敵人）
     private int hoveredEnemyIndex = -1;  // 鼠標懸停的敵人索引，-1表示無敵人懸停
-    private int hoveredAllyIndex = -1;  // 鼠標懸停的隊友索引，-1表示玩家，0..n表示隊友
     private int damagedEnemyIndex = -1;  // 受傷的敵人索引，用於顯示傷害血條
     private int damagedEnemyTicks = 0;  // 受傷敵人血條顯示計時
     private final int DAMAGE_DISPLAY_DURATION = 60; // 傷害血條顯示時長（幀數）
@@ -233,7 +231,6 @@ class GamePanel extends JPanel implements ActionListener, KeyListener, MouseList
         // 非戰鬥狀態時清除敵人懸停索引
         if (state != 1) {
             hoveredEnemyIndex = -1;
-            hoveredAllyIndex = -1;
         }
 
         // 加載菜單（優先於主菜單）
@@ -663,6 +660,9 @@ class GamePanel extends JPanel implements ActionListener, KeyListener, MouseList
                     g2d.drawRect(barX, barY, barWidth, barHeight);
                 }
             }
+
+            // 繪製行動順序長條
+            drawBattleOrderBar(g2d);
             
             // =============== 上方：敵人信息面板（鼠標懸停時） ===============
             if (hoveredEnemyIndex >= 0 && hoveredEnemyIndex < currentEnemies.size()) {
@@ -696,53 +696,6 @@ class GamePanel extends JPanel implements ActionListener, KeyListener, MouseList
                 g2d.setColor(new Color(255, 100, 100));
                 g2d.setFont(new Font("Microsoft JhengHei", Font.BOLD, 12));
                 String hpText = "HP: " + enemy.hp + "/" + enemy.maxHp;
-                g2d.drawString(hpText, infoPanelX + 100, infoPanelY + 35);
-            }
-
-            // =============== 上方：隊友信息面板（鼠標懸停時） ===============
-            if (hoveredAllyIndex >= -2) {
-                int infoPanelX = 20;
-                int infoPanelY = 20;
-                int infoPanelW = 220;
-                int infoPanelH = 55;
-                
-                // 面板背景
-                g2d.setColor(new Color(0, 100, 0, 200));
-                g2d.fillRect(infoPanelX, infoPanelY, infoPanelW, infoPanelH);
-                
-                // 邊框
-                g2d.setColor(new Color(0, 200, 0));
-                g2d.setStroke(new BasicStroke(2));
-                g2d.drawRect(infoPanelX, infoPanelY, infoPanelW, infoPanelH);
-                
-                // 角色名字
-                g2d.setColor(Color.WHITE);
-                g2d.setFont(new Font("Microsoft JhengHei", Font.BOLD, 13));
-                String name;
-                int hp, maxHp;
-                
-                if (hoveredAllyIndex == -2) {
-                    name = player.name != null ? player.name : "玩家";
-                    hp = player.hp;
-                    maxHp = player.maxHp;
-                } else {
-                    Companion companion = companions.get(hoveredAllyIndex);
-                    name = companion.name;
-                    hp = companion.hp;
-                    maxHp = companion.maxHp;
-                }
-                
-                g2d.drawString(name, infoPanelX + 10, infoPanelY + 18);
-                
-                // 等級
-                g2d.setColor(new Color(200, 200, 100));
-                g2d.setFont(new Font("Microsoft JhengHei", Font.PLAIN, 11));
-                g2d.drawString("Lv." + player.level, infoPanelX + 10, infoPanelY + 35);
-                
-                // 血量
-                g2d.setColor(new Color(100, 255, 100));
-                g2d.setFont(new Font("Microsoft JhengHei", Font.BOLD, 12));
-                String hpText = "HP: " + hp + "/" + maxHp;
                 g2d.drawString(hpText, infoPanelX + 100, infoPanelY + 35);
             }
 
@@ -825,88 +778,6 @@ class GamePanel extends JPanel implements ActionListener, KeyListener, MouseList
                 FontMetrics fmDrops = g2d.getFontMetrics();
                 int textWidth = fmDrops.stringWidth("掉落: " + previewDrops);
                 g2d.drawString("掉落: " + previewDrops, getWidth() - textWidth - 20, 35);
-            }
-
-            // 繪製行動順序長條（先於藥水菜單繪製，這樣可以透過菜單看到）
-            drawBattleOrderBar(g2d);
-
-            // 顯示藥水選擇菜單
-            if (selectingPotionMode) {
-                Object currentCharacter = currentActor;
-                if (currentCharacter == null) {
-                    currentCharacter = player;
-                }
-
-                int smallPotions = 0;
-                int largePotions = 0;
-                
-                if (currentCharacter instanceof Player) {
-                    Player p = (Player) currentCharacter;
-                    smallPotions = p.smallPotions;
-                    largePotions = p.largePotions;
-                } else if (currentCharacter instanceof Companion) {
-                    smallPotions = player.smallPotions;
-                    largePotions = player.largePotions;
-                }
-
-                int msgCenterX = getWidth() / 2;
-                int msgCenterY = getHeight() / 2;
-                int boxWidth = 300;
-                int boxHeight = 180;
-                int boxX = msgCenterX - boxWidth / 2;
-                int boxY = msgCenterY - boxHeight / 2;
-
-                // 半透明背景（只在菜單周圍）
-                g2d.setColor(new Color(0, 0, 0, 150));
-                g2d.fillRect(boxX - 20, boxY - 20, boxWidth + 40, boxHeight + 40);
-
-                // 菜單框
-                g2d.setColor(new Color(50, 50, 100, 200));
-                g2d.fillRect(boxX, boxY, boxWidth, boxHeight);
-                g2d.setColor(new Color(100, 150, 255));
-                g2d.setStroke(new BasicStroke(2));
-                g2d.drawRect(boxX, boxY, boxWidth, boxHeight);
-
-                // 標題
-                g2d.setColor(Color.WHITE);
-                g2d.setFont(new Font("Microsoft JhengHei", Font.BOLD, 16));
-                g2d.drawString("選擇藥水", boxX + 30, boxY + 30);
-
-                // 小藥按鈕
-                int btnWidth = 240;
-                int btnHeight = 40;
-                int btnY1 = boxY + 50;
-                int btnX = boxX + (boxWidth - btnWidth) / 2;
-                potionSmallRect = new Rectangle(btnX, btnY1, btnWidth, btnHeight);
-
-                g2d.setColor(smallPotions > 0 ? new Color(60, 100, 60) : new Color(80, 80, 80));
-                g2d.fillRect(potionSmallRect.x, potionSmallRect.y, potionSmallRect.width, potionSmallRect.height);
-                g2d.setColor(smallPotions > 0 ? new Color(100, 200, 100) : new Color(120, 120, 120));
-                g2d.setStroke(new BasicStroke(2));
-                g2d.drawRect(potionSmallRect.x, potionSmallRect.y, potionSmallRect.width, potionSmallRect.height);
-
-                g2d.setColor(Color.WHITE);
-                g2d.setFont(new Font("Microsoft JhengHei", Font.PLAIN, 13));
-                String smallText = "小藥 (+40) x" + smallPotions;
-                FontMetrics fmSmall = g2d.getFontMetrics();
-                int textX = potionSmallRect.x + (potionSmallRect.width - fmSmall.stringWidth(smallText)) / 2;
-                g2d.drawString(smallText, textX, potionSmallRect.y + 27);
-
-                // 大藥按鈕
-                int btnY2 = btnY1 + btnHeight + 15;
-                potionLargeRect = new Rectangle(btnX, btnY2, btnWidth, btnHeight);
-
-                g2d.setColor(largePotions > 0 ? new Color(100, 60, 60) : new Color(80, 80, 80));
-                g2d.fillRect(potionLargeRect.x, potionLargeRect.y, potionLargeRect.width, potionLargeRect.height);
-                g2d.setColor(largePotions > 0 ? new Color(200, 100, 100) : new Color(120, 120, 120));
-                g2d.setStroke(new BasicStroke(2));
-                g2d.drawRect(potionLargeRect.x, potionLargeRect.y, potionLargeRect.width, potionLargeRect.height);
-
-                g2d.setColor(Color.WHITE);
-                String largeText = "大藥 (+80) x" + largePotions;
-                FontMetrics fmLarge = g2d.getFontMetrics();
-                textX = potionLargeRect.x + (potionLargeRect.width - fmLarge.stringWidth(largeText)) / 2;
-                g2d.drawString(largeText, textX, potionLargeRect.y + 27);
             }
 
             // 顯示目標選擇提示
@@ -2249,63 +2120,6 @@ class GamePanel extends JPanel implements ActionListener, KeyListener, MouseList
             // 檢查鼠標按鍵
             int button = e.getButton();
             
-            // 藥水選擇菜單點擊處理
-            if (selectingPotionMode) {
-                // 右鍵取消
-                if (button == MouseEvent.BUTTON3) {
-                    selectingPotionMode = false;
-                    repaint();
-                    return;
-                }
-                
-                // 左鍵選擇藥水
-                if (button == MouseEvent.BUTTON1) {
-                    Object currentCharacter = currentActor;
-                    if (currentCharacter == null) {
-                        currentCharacter = player;
-                    }
-
-                    int smallPotions = 0;
-                    int largePotions = 0;
-                    
-                    if (currentCharacter instanceof Player) {
-                        Player pc = (Player) currentCharacter;
-                        smallPotions = pc.smallPotions;
-                        largePotions = pc.largePotions;
-                    } else if (currentCharacter instanceof Companion) {
-                        smallPotions = player.smallPotions;
-                        largePotions = player.largePotions;
-                    }
-
-                    // 點擊小藥
-                    if (potionSmallRect != null && potionSmallRect.contains(p)) {
-                        if (smallPotions > 0) {
-                            selectingPotionType = "small";
-                            selectingTargetMode = "potion";
-                            selectingPotionMode = false;
-                            repaint();
-                            return;
-                        }
-                    }
-                    
-                    // 點擊大藥
-                    if (potionLargeRect != null && potionLargeRect.contains(p)) {
-                        if (largePotions > 0) {
-                            selectingPotionType = "large";
-                            selectingTargetMode = "potion";
-                            selectingPotionMode = false;
-                            repaint();
-                            return;
-                        }
-                    }
-                    
-                    // 點擊菜單外部，關閉菜單
-                    selectingPotionMode = false;
-                    repaint();
-                }
-                return;
-            }
-            
             // 右鍵取消目標選擇模式
             if (button == MouseEvent.BUTTON3) {
                 selectingTargetMode = "";
@@ -2459,7 +2273,6 @@ class GamePanel extends JPanel implements ActionListener, KeyListener, MouseList
         // 在戰鬥中檢測鼠標是否懸停在敵人上
         if (state == 1) {
             hoveredEnemyIndex = -1;  // 默認無敵人懸停
-            hoveredAllyIndex = -1;   // 默認無隊友懸停
             
             for (int i = 0; i < currentEnemies.size(); i++) {
                 int enemyX = battleScreenEnemyX[i];
@@ -2472,32 +2285,7 @@ class GamePanel extends JPanel implements ActionListener, KeyListener, MouseList
                 
                 if (distance <= 15) {  // 稍大一點的範圍便於選中
                     hoveredEnemyIndex = i;
-                    return;  // 找到敵人後就返回，不檢測隊友
-                }
-            }
-            
-            // 只有在用藥目標選擇模式時才檢測隊友懸停
-            if ("potion".equals(selectingTargetMode)) {
-                // 檢查玩家
-                double dx = mouseX - battleScreenPlayerX;
-                double dy = mouseY - battleScreenPlayerY;
-                double distance = Math.sqrt(dx * dx + dy * dy);
-                
-                if (distance <= 40) {
-                    hoveredAllyIndex = -2;  // -2 表示玩家
-                    return;
-                }
-                
-                // 檢查隊友
-                for (int i = 0; i < companions.size(); i++) {
-                    dx = mouseX - battleScreenCompanionX[i];
-                    dy = mouseY - battleScreenCompanionY[i];
-                    distance = Math.sqrt(dx * dx + dy * dy);
-                    
-                    if (distance <= 40) {
-                        hoveredAllyIndex = i;  // 0..n 表示隊友
-                        return;
-                    }
+                    break;
                 }
             }
         }
@@ -2514,7 +2302,6 @@ class GamePanel extends JPanel implements ActionListener, KeyListener, MouseList
     @Override
     public void mouseExited(MouseEvent e) {
         hoveredEnemyIndex = -1;  // 鼠標離開時清除懸停狀態
-        hoveredAllyIndex = -1;   // 清除隊友懸停狀態
     }
 
     @Override
@@ -2932,7 +2719,6 @@ class GamePanel extends JPanel implements ActionListener, KeyListener, MouseList
         enemyAttackTargetCompanionIndex = -1;
         targetingEnemyIndex = -1;
         hoveredEnemyIndex = -1;
-        hoveredAllyIndex = -1;
         damagedEnemyIndex = -1;
         damagedEnemyTicks = 0;
         playerTakingDamage = false;
@@ -2941,7 +2727,6 @@ class GamePanel extends JPanel implements ActionListener, KeyListener, MouseList
         fleeMessage = "";
         selectingTargetMode = "";
         selectingPotionType = "";
-        selectingPotionMode = false;
         selectedSkill = null;
 
         currentEnemies.clear();
@@ -3212,7 +2997,6 @@ class GamePanel extends JPanel implements ActionListener, KeyListener, MouseList
         selectedSkill = null;
         selectingTargetMode = "";
         selectingPotionType = "";
-        selectingPotionMode = false;
         previewDrops = "";
         settlementDrops = "";
         showLoadMenu = false;
@@ -3817,7 +3601,6 @@ class GamePanel extends JPanel implements ActionListener, KeyListener, MouseList
         selectedSkill = null;
         waitingForPlayerDecision = false;
         selectingTargetMode = "";
-        selectingPotionMode = false;
         // targetingEnemyIndex 保持得到的目標敵人索引
         repaint();
     }
@@ -3838,7 +3621,6 @@ class GamePanel extends JPanel implements ActionListener, KeyListener, MouseList
         animTicks = 0;
         waitingForPlayerDecision = false;
         selectingTargetMode = "";
-        selectingPotionMode = false;
         repaint();
     }
 
@@ -3895,7 +3677,6 @@ class GamePanel extends JPanel implements ActionListener, KeyListener, MouseList
         completeActionAndRefreshBattleOrder(10);
         selectingTargetMode = "";
         selectingPotionType = "";
-        selectingPotionMode = false;
         repaint();
     }
 
@@ -3991,9 +3772,21 @@ class GamePanel extends JPanel implements ActionListener, KeyListener, MouseList
             return;
         }
 
-        // 進入藥水種類選擇模式
-        selectingPotionMode = true;
-        repaint();
+        Object[] options = { "小藥 (+40)", "大藥 (+80)", "取消" };
+        int choice = JOptionPane.showOptionDialog(this,
+                "選擇藥水種類", "藥水",
+                JOptionPane.DEFAULT_OPTION, JOptionPane.PLAIN_MESSAGE,
+                null, options, options[0]);
+
+        if (choice == 0 && smallPotions > 0) {
+            selectingPotionType = "small";
+            selectingTargetMode = "potion";  // 進入藥水目標選擇模式
+            repaint();
+        } else if (choice == 1 && largePotions > 0) {
+            selectingPotionType = "large";
+            selectingTargetMode = "potion";  // 進入藥水目標選擇模式
+            repaint();
+        }
     }
 }
 
