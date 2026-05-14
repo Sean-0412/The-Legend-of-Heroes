@@ -1,3 +1,5 @@
+package src;
+
 import javax.swing.*;
 
 /**
@@ -17,7 +19,7 @@ public class RPGGame extends JFrame {
     private GamePanel gamePanel;
 
     public RPGGame() {
-        setTitle("St. no Kiseki");
+        setTitle("簡易RPG");
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setSize(800, 600);
         setLocationRelativeTo(null);

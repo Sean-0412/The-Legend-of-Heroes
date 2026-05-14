@@ -1,3 +1,5 @@
+package src;
+
 public abstract class Skill {
     String name;
     String description;
