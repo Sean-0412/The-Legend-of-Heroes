@@ -1,5 +1,3 @@
-package src;
-
 public class BattleUnit {
     int speed; // 戰鬥速度
     double at; // 行動值，越低越先行動

@@ -1,0 +1,24 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "編譯並運行RPG遊戲",
+            "type": "shell",
+            "command": "cmd",
+            "args": [
+                "/c",
+                "cd /d \"${workspaceFolder}\" && if not exist bin mkdir bin && javac -encoding UTF-8 -d bin src\\*.java && java -cp bin RPGGame"
+            ],
+            "problemMatcher": ["$javac"],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "presentation": {
+                "panel": "shared",
+                "reveal": "always"
+            },
+            "isBackground": false
+        }
+    ]
+}

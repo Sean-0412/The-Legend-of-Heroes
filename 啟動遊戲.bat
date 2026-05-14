@@ -16,7 +16,7 @@ if errorlevel 1 (
 )
 
 echo Build complete. Launching game...
-java -cp bin src.RPGGame
+java -cp bin RPGGame
 
 if errorlevel 1 (
     echo Game exited with an error.

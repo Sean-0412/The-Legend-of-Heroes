@@ -1,5 +1,3 @@
-package src;
-
 public class SkillMoonlight extends Skill {
     SkillMoonlight() {
         super("月光治療", "幫全隊回復20%最大HP", 30);

@@ -1,5 +1,3 @@
-package src;
-
 public class Enemy {
     double x, y; // pixel position
     int maxHp = 120;

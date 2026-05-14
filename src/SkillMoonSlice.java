@@ -1,5 +1,3 @@
-package src;
-
 public class SkillMoonSlice extends Skill {
     SkillMoonSlice() {
         super("月牙斬", "對敵方全體造成自身攻擊力60%的傷害", 25);
