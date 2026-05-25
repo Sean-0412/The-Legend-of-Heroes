@@ -31,12 +31,13 @@ public class Player {
 
     int smallPotions = 3;
     int largePotions = 1;
-    int gold = 0;  // 金幣
+    int gold = 0;  // 金幣，初始值為 0
     List<Skill> skills = new ArrayList<>();
 
     Player(double x, double y) {
         this.x = x;
         this.y = y;
+        this.gold = 0;
         // 初始化戰技
         skills.add(new SkillSaintBlood());
     }
@@ -70,5 +71,31 @@ public class Player {
         pdef += 8;
         matk += 8;
         mdef += 8;
+    }
+
+    public boolean buyEquipment(String equipName, int cost, String statType, int bonus) {
+        if (gold < cost) {
+            return false;
+        }
+        gold -= cost;
+        switch (statType) {
+            case "patk":
+                patk += bonus;
+                break;
+            case "matk":
+                matk += bonus;
+                break;
+            case "pdef":
+                pdef += bonus;
+                break;
+            case "mdef":
+                mdef += bonus;
+                break;
+            default:
+                // 若 statType 不符合，回復金幣並視為失敗
+                gold += cost;
+                return false;
+        }
+        return true;
     }
 }

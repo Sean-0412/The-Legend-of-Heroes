@@ -507,6 +507,14 @@ class GamePanel extends JPanel implements ActionListener, KeyListener, MouseList
             g2d.setColor(new Color(0, 0, 0, 200));
             g2d.fillRect(0, 0, getWidth(), getHeight());
 
+            // 顯示金幣
+            g2d.setFont(new Font("Microsoft JhengHei", Font.BOLD, 16));
+            if (!g2d.getFont().canDisplay('金')) {
+                g2d.setFont(new Font(Font.DIALOG, Font.BOLD, 16));
+            }
+            g2d.setColor(Color.YELLOW);
+            g2d.drawString("金幣: " + player.gold + " G", 20, 30);
+
             // 動畫偏移計算
             int offsetX = 0;
             int offsetY = 0;
@@ -1057,6 +1065,14 @@ class GamePanel extends JPanel implements ActionListener, KeyListener, MouseList
                 g2d.fillRoundRect(x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE, TILE_SIZE, arc, arc);
             }
         }
+
+        // 顯示金幣
+        g2d.setFont(new Font("Microsoft JhengHei", Font.BOLD, 16));
+        if (!g2d.getFont().canDisplay('金')) {
+            g2d.setFont(new Font(Font.DIALOG, Font.BOLD, 16));
+        }
+        g2d.setColor(Color.YELLOW);
+        g2d.drawString("金幣: " + player.gold + " G", 20, 30);
 
         // 傳送門視覺效果
         g2d.setFont(new Font("Microsoft JhengHei", Font.BOLD, 11));
@@ -2104,6 +2120,13 @@ class GamePanel extends JPanel implements ActionListener, KeyListener, MouseList
                     player.vy = player.speed;
                     mouseDown = false;
                     keyDown = true;
+                    break;
+                case KeyEvent.VK_P:
+                    player.vx = 0;
+                    player.vy = 0;
+                    mouseDown = false;
+                    keyDown = false;
+                    showShopMenu();
                     break;
             }
         } else if (state == 1 && currentEnemies.size() > 0) {
@@ -4009,6 +4032,61 @@ class GamePanel extends JPanel implements ActionListener, KeyListener, MouseList
             selectingPotionType = "large";
             selectingTargetMode = "potion";  // 進入藥水目標選擇模式
             repaint();
+        }
+    }
+
+    // 顯示商店菜單
+    private void showShopMenu() {
+        String[] shopItems = {
+                "劣質小刀 - 50G (+5 物攻)",
+                "劣質法杖 - 50G (+5 魔攻)",
+                "劣質護甲 - 40G (+5 物防)",
+                "劣質斗篷 - 40G (+5 魔防)",
+                "取消"
+        };
+
+        JList<String> shopListUI = new JList<>(shopItems);
+        shopListUI.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+        shopListUI.setSelectedIndex(0);
+        shopListUI.setFont(new java.awt.Font("Microsoft JhengHei", java.awt.Font.PLAIN, 14));
+        shopListUI.setFixedCellHeight(30);
+        shopListUI.setVisibleRowCount(Math.min(8, shopItems.length));
+
+        JScrollPane scrollPane = new JScrollPane(shopListUI);
+        scrollPane.setPreferredSize(new java.awt.Dimension(420, 220));
+
+        int result = JOptionPane.showConfirmDialog(this, scrollPane, "商店",
+                JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
+
+        if (result != JOptionPane.OK_OPTION || shopListUI.getSelectedIndex() < 0) {
+            return;
+        }
+
+        int choice = shopListUI.getSelectedIndex();
+        boolean bought = false;
+
+        switch (choice) {
+            case 0:
+                bought = player.buyEquipment("劣質小刀", 50, "patk", 5);
+                break;
+            case 1:
+                bought = player.buyEquipment("劣質法杖", 50, "matk", 5);
+                break;
+            case 2:
+                bought = player.buyEquipment("劣質護甲", 40, "pdef", 5);
+                break;
+            case 3:
+                bought = player.buyEquipment("劣質斗篷", 40, "mdef", 5);
+                break;
+            default:
+                return;
+        }
+
+        if (bought) {
+            JOptionPane.showMessageDialog(this, "購買成功！");
+            repaint();
+        } else {
+            JOptionPane.showMessageDialog(this, "金幣不足！");
         }
     }
 }
