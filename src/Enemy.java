@@ -2,6 +2,9 @@ package src;
 
 public class Enemy {
     double x, y; // pixel position
+    String name = "敵人";
+    int level = 5;
+    boolean isBoss = false;
     int maxHp = 120;
     int hp = 120;
     int maxCp = 200;
@@ -37,6 +40,47 @@ public class Enemy {
         this.originY = this.y;
         this.tgtX = this.x;
         this.tgtY = this.y;
+    }
+
+    Enemy(int tileX, int tileY, String name, int level, int maxHp, int patk, int pdef, int mdef,
+            int expReward, int speed, boolean isBoss) {
+        this(tileX, tileY);
+        this.name = name;
+        this.level = level;
+        this.isBoss = isBoss;
+        this.maxHp = maxHp;
+        this.hp = maxHp;
+        this.patk = patk;
+        this.pdef = pdef;
+        this.mdef = mdef;
+        this.expReward = expReward;
+        this.speed = speed;
+    }
+
+    Enemy(Enemy other) {
+        this.x = other.x;
+        this.y = other.y;
+        this.originX = this.x;
+        this.originY = this.y;
+        this.tgtX = this.x;
+        this.tgtY = this.y;
+        this.name = other.name;
+        this.level = other.level;
+        this.isBoss = other.isBoss;
+        this.maxHp = other.maxHp;
+        this.hp = other.maxHp;
+        this.maxCp = other.maxCp;
+        this.cp = 0;
+        this.patk = other.patk;
+        this.pdef = other.pdef;
+        this.mdef = other.mdef;
+        this.expReward = other.expReward;
+        this.speed = other.speed;
+        this.moveSpeed = other.moveSpeed;
+        this.roamRadius = other.roamRadius;
+        this.detectRange = other.detectRange;
+        this.chaseLoseRange = other.chaseLoseRange;
+        this.roamInterval = other.roamInterval;
     }
 
     boolean isDefeated() {
