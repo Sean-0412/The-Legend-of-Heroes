@@ -21,7 +21,7 @@ public class RPGGame extends JFrame {
     public RPGGame() {
         setTitle("簡易RPG");
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        setSize(800, 600);
+        setSize(900, 650);
         setLocationRelativeTo(null);
         setResizable(false);
 
