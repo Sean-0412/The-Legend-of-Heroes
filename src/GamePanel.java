@@ -21,6 +21,10 @@ class GamePanel extends JPanel implements ActionListener, KeyListener, MouseList
     final double MAP_LEFT_WIDTH_SCALE = 1.5;
     final double MAP_RIGHT_HEIGHT_SCALE = 1.7; // 调整正右/右走圖片高度用
     final double MAP_LEFT_HEIGHT_SCALE = 1.2375;
+    final int SHOP_NPC_MAP_INDEX = 0;
+    final int SHOP_NPC_TILE_X = 8;
+    final int SHOP_NPC_TILE_Y = 6;
+    final double SHOP_NPC_INTERACT_RANGE = 70.0;
 
     // multi-map support
     int mapIndex = 0;
@@ -117,6 +121,7 @@ class GamePanel extends JPanel implements ActionListener, KeyListener, MouseList
     int[] battleScreenCompanionX = new int[4];  // 隊友在戰鬥螢幕上的X坐標
     int[] battleScreenCompanionY = new int[4];  // 隊友在戰鬥螢幕上的Y坐標
     BufferedImage battlePlayerSprite;
+    BufferedImage shopNpcSprite;
 
     // 地圖玩家圖片
     BufferedImage playerIdleRight;
@@ -218,6 +223,9 @@ class GamePanel extends JPanel implements ActionListener, KeyListener, MouseList
 
         // 戰鬥畫面先用正右，也可以之後改成依方向切換
         battlePlayerSprite = playerIdleRight;
+
+        // 嘗試載入商人立繪（檔名放在 resources/shop_npc.png）
+        shopNpcSprite = loadSprite("shop_npc.png");
     }
 
     private BufferedImage loadSprite(String fileName) {
@@ -1159,6 +1167,8 @@ class GamePanel extends JPanel implements ActionListener, KeyListener, MouseList
             g2d.setColor(portalColor.darker());
             g2d.drawString("←地下城", 2, 7 * TILE_SIZE - 4);
         }
+
+        drawShopNpc(g2d);
 
         for (Enemy e : enemies) {
             if (e.shouldRenderOnMap()) {
@@ -2198,10 +2208,6 @@ class GamePanel extends JPanel implements ActionListener, KeyListener, MouseList
                     mouseDown = false;
                     keyDown = true;
                     break;
-                case KeyEvent.VK_B:
-                    // 按 B 開商店（地圖探索中）
-                    Shop.showShop(this);
-                    break;
             }
         } else if (state == 1 && currentEnemies.size() > 0) {
             // 如果顯示逃跑訊息，按任意鍵關閉
@@ -2342,6 +2348,13 @@ class GamePanel extends JPanel implements ActionListener, KeyListener, MouseList
             return;
         }
         if (state == 0) {
+            if (e.getButton() == MouseEvent.BUTTON3) {
+                if (!showMapMenu && isNearShopNpc()) {
+                    Shop.showShop(this);
+                }
+                return;
+            }
+
             if (menuRect != null && menuRect.contains(p)) {
                 showMapMenu = !showMapMenu;
                 if (showMapMenu) {
@@ -2639,6 +2652,62 @@ class GamePanel extends JPanel implements ActionListener, KeyListener, MouseList
             int maxScroll = Math.max(0, 2 - BAG_VISIBLE_ITEMS);  // 2項物品
             bagScrollOffset -= e.getWheelRotation();
             bagScrollOffset = Math.max(0, Math.min(bagScrollOffset, maxScroll));
+        }
+    }
+
+    private double getShopNpcCenterX() {
+        return SHOP_NPC_TILE_X * TILE_SIZE + TILE_SIZE / 2.0;
+    }
+
+    private double getShopNpcCenterY() {
+        return SHOP_NPC_TILE_Y * TILE_SIZE + TILE_SIZE / 2.0;
+    }
+
+    private boolean isNearShopNpc() {
+        if (state != 0 || mapIndex != SHOP_NPC_MAP_INDEX) {
+            return false;
+        }
+
+        double playerCenterX = player.x + TILE_SIZE / 2.0;
+        double playerCenterY = player.y + TILE_SIZE / 2.0;
+        return Math.hypot(playerCenterX - getShopNpcCenterX(), playerCenterY - getShopNpcCenterY())
+                <= SHOP_NPC_INTERACT_RANGE;
+    }
+
+    private void drawShopNpc(Graphics2D g2d) {
+        if (mapIndex != SHOP_NPC_MAP_INDEX) {
+            return;
+        }
+
+        int npcX = SHOP_NPC_TILE_X * TILE_SIZE;
+        int npcY = SHOP_NPC_TILE_Y * TILE_SIZE;
+        if (shopNpcSprite != null) {
+            int imgW = shopNpcSprite.getWidth();
+            int imgH = shopNpcSprite.getHeight();
+            double scale = Math.min((double) TILE_SIZE * 1.6 / imgW, (double) TILE_SIZE * 1.8 / imgH);
+            int drawW = (int) Math.round(imgW * scale);
+            int drawH = (int) Math.round(imgH * scale);
+            int drawX = (int) Math.round(getShopNpcCenterX() - drawW / 2.0);
+            int drawY = (int) Math.round(getShopNpcCenterY() - drawH / 2.0);
+            g2d.drawImage(shopNpcSprite, drawX, drawY, drawW, drawH, null);
+            g2d.setColor(Color.BLACK);
+            g2d.setFont(new Font("Microsoft JhengHei", Font.BOLD, 12));
+            g2d.drawString("商人", npcX + 2, npcY - 6);
+        } else {
+            g2d.setColor(new Color(118, 74, 42));
+            g2d.fillRoundRect(npcX + 8, npcY + 12, 24, 24, 8, 8);
+            g2d.setColor(new Color(232, 208, 170));
+            g2d.fillOval(npcX + 11, npcY + 4, 18, 18);
+            g2d.setColor(Color.BLACK);
+            g2d.setFont(new Font("Microsoft JhengHei", Font.BOLD, 11));
+            g2d.drawString("商人", npcX + 5, npcY - 4);
+        }
+
+        if (isNearShopNpc()) {
+            g2d.setColor(new Color(0, 0, 0, 160));
+            g2d.fillRoundRect(npcX - 24, npcY - 24, 90, 18, 8, 8);
+            g2d.setColor(new Color(255, 230, 120));
+            g2d.drawString("右鍵開商店", npcX - 18, npcY - 10);
         }
     }
 
