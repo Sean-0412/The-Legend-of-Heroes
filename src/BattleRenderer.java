@@ -147,25 +147,28 @@ class BattleRenderer {
             if (battleSprite == null) {
                 battleSprite = game.battlePlayerSprite;
             }
-            int spriteSize = (int) Math.round(game.getMapPlayerDrawSize(battleSprite, basePlayerSpriteSize)
+                int spriteW = (int) Math.round(game.getMapPlayerDrawWidth(battleSprite, basePlayerSpriteSize)
                     * BATTLE_PLAYER_SCALE);
-            int half = spriteSize / 2;
+                int spriteH = (int) Math.round(game.getMapPlayerDrawHeight(battleSprite, basePlayerSpriteSize)
+                    * BATTLE_PLAYER_SCALE);
+                int halfW = spriteW / 2;
+                int halfH = spriteH / 2;
             if (battleSprite != null) {
-                g2d.drawImage(battleSprite, actualPlayerX - half, actualPlayerY - half, spriteSize, spriteSize, null);
+                g2d.drawImage(battleSprite, actualPlayerX - halfW, actualPlayerY - halfH, spriteW, spriteH, null);
 
                 if (playerHealGlow > 0) {
                     Composite oldComposite = g2d.getComposite();
                     g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER,
                             (float) Math.min(0.45, playerHealGlow * 0.45)));
                     g2d.setColor(Color.WHITE);
-                    g2d.fillOval(actualPlayerX - half, actualPlayerY - half, spriteSize, spriteSize);
+                    g2d.fillOval(actualPlayerX - halfW, actualPlayerY - halfH, spriteW, spriteH);
                     g2d.setComposite(oldComposite);
                 }
 
                 if (isPlayerActive) {
                     g2d.setColor(Color.YELLOW);
                     g2d.setStroke(new BasicStroke(3));
-                    g2d.drawRoundRect(actualPlayerX - half - 2, actualPlayerY - half - 2, spriteSize + 4, spriteSize + 4, 8, 8);
+                    g2d.drawRoundRect(actualPlayerX - halfW - 2, actualPlayerY - halfH - 2, spriteW + 4, spriteH + 4, 8, 8);
                 }
             } else if (isPlayerActive) {
                 g2d.setColor(blendToWhite(new Color(100, 150, 255), playerHealGlow));
@@ -387,18 +390,29 @@ class BattleRenderer {
         game.healRect = new Rectangle(startX + (btnW + gap) * 2, btnAreaY, btnW, btnH);
         game.runRect = new Rectangle(startX + (btnW + gap) * 3, btnAreaY, btnW, btnH);
 
+        boolean runDisabled = game.isBossBattleActive();
+        Composite oldComposite = g2d.getComposite();
+
         g2d.setColor(new Color(60, 60, 100));
         g2d.fill(game.attackRect);
         g2d.fill(game.skillRect);
         g2d.fill(game.healRect);
+        if (runDisabled) {
+            g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 0.45f));
+        }
         g2d.fill(game.runRect);
+        g2d.setComposite(oldComposite);
 
         g2d.setColor(new Color(150, 150, 200));
         g2d.setStroke(new BasicStroke(2));
         g2d.draw(game.attackRect);
         g2d.draw(game.skillRect);
         g2d.draw(game.healRect);
+        if (runDisabled) {
+            g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 0.45f));
+        }
         g2d.draw(game.runRect);
+        g2d.setComposite(oldComposite);
 
         g2d.setColor(Color.WHITE);
         g2d.setFont(new Font("Microsoft JhengHei", Font.BOLD, 13));
@@ -411,7 +425,13 @@ class BattleRenderer {
             Rectangle rect = btnRects[i];
             int tX = rect.x + (rect.width - fm.stringWidth(text)) / 2;
             int tY = rect.y + ((rect.height - fm.getHeight()) / 2) + fm.getAscent();
+            if (i == 3 && runDisabled) {
+                g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 0.45f));
+            }
             g2d.drawString(text, tX, tY);
+            if (i == 3 && runDisabled) {
+                g2d.setComposite(oldComposite);
+            }
         }
 
         if (!game.previewDrops.isEmpty()) {

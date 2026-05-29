@@ -194,6 +194,9 @@ class GameInputHandler {
                 } else if (key == KeyEvent.VK_H) {
                     battleManager.showPotionMenuForTargeting();
                 } else if (key == KeyEvent.VK_R) {
+                    if (game.isBossBattleActive()) {
+                        return;
+                    }
                     if (game.currentActor instanceof Player || game.currentActor instanceof Companion) {
                         if (Math.random() < 0.6) {
                             game.fleeMessage = "逃跑成功！敵人短暫失去戰意。";
@@ -447,6 +450,9 @@ class GameInputHandler {
                 battleManager.showPotionMenuForTargeting();
                 return;
             } else if (game.runRect != null && game.runRect.contains(p)) {
+                if (game.isBossBattleActive()) {
+                    return;
+                }
                 if (game.currentActor instanceof Player || game.currentActor instanceof Companion) {
                     if (Math.random() < 0.6) {
                         game.fleeMessage = "逃跑成功！敵人短暫失去戰意。";

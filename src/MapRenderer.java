@@ -70,15 +70,17 @@ class MapRenderer {
 
         int playerSpriteSize = 40;
         BufferedImage currentPlayerSprite = game.getCurrentPlayerSprite();
-        int drawSize = game.getMapPlayerDrawSize(currentPlayerSprite, playerSpriteSize);
-        int playerSpriteOffset = (game.TILE_SIZE - drawSize) / 2;
+        int drawW = game.getMapPlayerDrawWidth(currentPlayerSprite, playerSpriteSize);
+        int drawH = game.getMapPlayerDrawHeight(currentPlayerSprite, playerSpriteSize);
+        int playerSpriteOffsetX = (game.TILE_SIZE - drawW) / 2;
+        int playerSpriteOffsetY = (game.TILE_SIZE - drawH) / 2;
 
         if (currentPlayerSprite != null) {
             g2d.drawImage(currentPlayerSprite,
-                    (int) game.player.x + playerSpriteOffset,
-                    (int) game.player.y + playerSpriteOffset,
-                    drawSize,
-                    drawSize,
+                (int) game.player.x + playerSpriteOffsetX,
+                (int) game.player.y + playerSpriteOffsetY,
+                drawW,
+                drawH,
                     null);
         } else {
             g2d.setColor(Color.BLUE);

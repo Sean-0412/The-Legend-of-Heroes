@@ -591,6 +591,8 @@ class MenuUI {
             }
 
             state.currentMapIndex = game.mapIndex;
+            state.bossCutscenePlayed = game.bossCutscenePlayed;
+            state.bossDefeated = game.bossDefeated;
 
             int enemyId = 0;
             for (java.util.List<Enemy> enemyList : game.allEnemies) {
@@ -674,6 +676,12 @@ class MenuUI {
             }
 
             game.mapManager.switchMap(gameStateData.currentMapIndex, gameStateData.playerX, gameStateData.playerY);
+
+            game.bossCutscenePlayed = gameStateData.bossCutscenePlayed;
+            game.bossDefeated = gameStateData.bossDefeated;
+            if (game.bossDefeated) {
+                game.bossCutscenePlayed = true;
+            }
 
             int enemyId = 0;
             for (java.util.List<Enemy> enemyList : game.allEnemies) {

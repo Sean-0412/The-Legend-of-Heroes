@@ -52,6 +52,7 @@ public class GameState implements Serializable {
     public int currentMapIndex;
     public Map<String, Boolean> defeatedEnemies;
     public boolean bossCutscenePlayed;
+    public boolean bossDefeated;
     
     // 保存時間戳記
     public long saveTime;

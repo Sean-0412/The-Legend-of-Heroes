@@ -113,6 +113,7 @@ class BattleManager {
                                 }
 
                                 if (game.currentEnemies.isEmpty()) {
+                                    game.markBossDefeatedIfNeeded();
                                     for (Enemy origEnemy : game.originalBattleEnemies) {
                                         origEnemy.defeated = true;
                                     }
@@ -174,6 +175,7 @@ class BattleManager {
                                     }
 
                                     if (game.currentEnemies.isEmpty()) {
+                                        game.markBossDefeatedIfNeeded();
                                         for (Enemy origEnemy : game.originalBattleEnemies) {
                                             origEnemy.defeated = true;
                                         }
@@ -515,6 +517,7 @@ class BattleManager {
             return false;
         }
 
+        game.markBossDefeatedIfNeeded();
         for (Enemy origEnemy : game.originalBattleEnemies) {
             origEnemy.defeated = true;
         }
