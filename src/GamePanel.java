@@ -2198,6 +2198,10 @@ class GamePanel extends JPanel implements ActionListener, KeyListener, MouseList
                     mouseDown = false;
                     keyDown = true;
                     break;
+                case KeyEvent.VK_B:
+                    // 按 B 開商店（地圖探索中）
+                    Shop.showShop(this);
+                    break;
             }
         } else if (state == 1 && currentEnemies.size() > 0) {
             // 如果顯示逃跑訊息，按任意鍵關閉
