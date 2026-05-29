@@ -85,11 +85,17 @@ class GamePanel extends JPanel implements ActionListener, KeyListener, MouseList
     Rectangle statusPlayerSelectorRect;
     Rectangle[] statusCompanionSelectorRects = new Rectangle[4];
     boolean showMapMenu = false;
+    boolean shopOpen = false; // 商店對話中暫停地圖更新
     int selectedMapTab = 0;  // 0=狀態, 1=背包, 2=保存
     int hoveredMapTab = -1;
     int selectedStatusActor = -1; // -1=玩家, 0..n=隊友
     int selectedSaveSlot = 0;  // 當前選中的保存槽位
     int bagScrollOffset = 0;  // 背包滾動偏移
+    int selectedEquipmentActor = -1; // -1=勇者, 0=月
+    int selectedEquipmentSlot = 0; // 0=武器, 1=衣服, 2=鞋子, 3=飾品1, 4=飾品2
+    Rectangle[] heroEquipmentSlotRects = new Rectangle[5];
+    Rectangle[] moonEquipmentSlotRects = new Rectangle[5];
+    static final String[] EQUIPMENT_SLOT_LABELS = { "武器", "衣服", "鞋子", "飾品1", "飾品2" };
     final int BAG_VISIBLE_ITEMS = 8;  // 顯示項目數
     final int MAX_SAVE_SLOTS = 3;  // 最多3個存檔槽位
     static final String SAVE_DIR_NAME = "saves";
@@ -1236,23 +1242,23 @@ class GamePanel extends JPanel implements ActionListener, KeyListener, MouseList
         g2d.drawString("選單", menuRect.x + 28, menuRect.y + 21);
 
         if (showMapMenu) {
-            int panelW = Math.min(getWidth() - 40, 680);
-            int panelH = Math.min(getHeight() - 60, 460);
-            int panelX = 20;
-            int panelY = 20;
+            int panelW = getWidth();
+            int panelH = getHeight();
+            int panelX = 0;
+            int panelY = 0;
             mapMenuPanelRect = new Rectangle(panelX, panelY, panelW, panelH);
 
             // 面板背景
             GradientPaint panelGrad = new GradientPaint(panelX, panelY, new Color(20, 26, 48, 235),
                     panelX, panelY + panelH, new Color(8, 12, 24, 235));
             g2d.setPaint(panelGrad);
-            g2d.fillRoundRect(panelX, panelY, panelW, panelH, 12, 12);
-            g2d.setColor(new Color(110, 150, 220));
+            g2d.fillRect(panelX, panelY, panelW, panelH);
+            g2d.setColor(new Color(110, 150, 220, 180));
             g2d.setStroke(new BasicStroke(2));
-            g2d.drawRoundRect(panelX, panelY, panelW, panelH, 12, 12);
+            g2d.drawRect(panelX, panelY, panelW - 1, panelH - 1);
 
             // 上方分頁
-            int tabY = panelY + 10;
+            int tabY = panelY + 12;
             int tabW = 140;
             int tabH = 38;
             int tabGap = 10;
@@ -1511,25 +1517,7 @@ class GamePanel extends JPanel implements ActionListener, KeyListener, MouseList
                 g2d.setFont(new Font("Microsoft JhengHei", Font.PLAIN, 12));
                 g2d.drawString("上方可切換角色檢視：勇者/隊友", cardX + 12, tipY);
             } else if (selectedMapTab == 1) {
-                // 背包
-                java.util.List<String> bagItems = new java.util.ArrayList<>();
-                bagItems.add("小藥 x" + player.smallPotions);
-                bagItems.add("大藥 x" + player.largePotions);
-                bagItems.add("金幣 x" + player.gold);
-
-                int visibleStart = bagScrollOffset;
-                int visibleEnd = Math.min(bagScrollOffset + BAG_VISIBLE_ITEMS, bagItems.size());
-                int itemY = contentY + 34;
-                for (int i = visibleStart; i < visibleEnd; i++) {
-                    g2d.setColor(i == bagScrollOffset ? Color.CYAN : Color.WHITE);
-                    g2d.setFont(new Font("Microsoft JhengHei", Font.PLAIN, 15));
-                    g2d.drawString("- " + bagItems.get(i), contentX + 14, itemY);
-                    itemY += 30;
-                }
-
-                g2d.setColor(new Color(160, 180, 210));
-                g2d.setFont(new Font("Microsoft JhengHei", Font.PLAIN, 11));
-                g2d.drawString("滑鼠滾輪可滾動項目", contentX + 14, contentY + contentH - 12);
+                drawEquipmentTab(g2d, contentX, contentY, contentW, contentH);
             } else {
                 // 保存
                 int slotX = contentX + 12;
@@ -1574,9 +1562,335 @@ class GamePanel extends JPanel implements ActionListener, KeyListener, MouseList
                 g2d.setFont(new Font("Microsoft JhengHei", Font.PLAIN, 12));
                 g2d.drawString("點擊槽位立即保存，ESC 關閉選單", contentX + 12, contentY + contentH - 12);
             }
+
+            g2d.setColor(new Color(210, 225, 255));
+            g2d.setFont(new Font("Microsoft JhengHei", Font.PLAIN, 12));
+            g2d.drawString("ESC 關閉選單", panelW - 110, panelH - 16);
         }
 
     }
+
+    private void drawEquipmentTab(Graphics2D g2d, int contentX, int contentY, int contentW, int contentH) {
+        int innerX = contentX + 12;
+        int innerY = contentY + 12;
+        int innerW = contentW - 24;
+        int innerH = contentH - 24;
+        int leftW = Math.min(380, Math.max(300, innerW / 2));
+        int gap = 12;
+        int rightW = innerW - leftW - gap;
+        if (rightW < 220) {
+            rightW = 220;
+            leftW = Math.max(220, innerW - rightW - gap);
+        }
+
+        int leftX = innerX;
+        int rightX = leftX + leftW + gap;
+
+        g2d.setPaint(new GradientPaint(leftX, innerY, new Color(28, 38, 66, 235), leftX, innerY + innerH,
+                new Color(16, 24, 42, 235)));
+        g2d.fillRoundRect(leftX, innerY, leftW, innerH, 10, 10);
+        g2d.setColor(new Color(100, 132, 194));
+        g2d.setStroke(new BasicStroke(1.5f));
+        g2d.drawRoundRect(leftX, innerY, leftW, innerH, 10, 10);
+
+        g2d.setPaint(new GradientPaint(rightX, innerY, new Color(24, 34, 58, 235), rightX, innerY + innerH,
+                new Color(12, 18, 34, 235)));
+        g2d.fillRoundRect(rightX, innerY, rightW, innerH, 10, 10);
+        g2d.setColor(new Color(88, 118, 176));
+        g2d.drawRoundRect(rightX, innerY, rightW, innerH, 10, 10);
+
+        int actorGap = 12;
+        int actorH = (innerH - actorGap) / 2;
+        drawEquipmentActorPanel(g2d, true, leftX + 10, innerY + 10, leftW - 20, actorH - 10);
+        drawEquipmentActorPanel(g2d, false, leftX + 10, innerY + 10 + actorH + actorGap, leftW - 20,
+                actorH - 10);
+
+        int detailX = rightX + 14;
+        int detailY = innerY + 16;
+        int detailW = rightW - 28;
+
+        g2d.setColor(Color.WHITE);
+        g2d.setFont(new Font("Microsoft JhengHei", Font.BOLD, 16));
+        g2d.drawString("背包內容", detailX, detailY + 18);
+
+        g2d.setColor(new Color(210, 224, 246));
+        g2d.setFont(new Font("Microsoft JhengHei", Font.PLAIN, 12));
+        //g2d.drawString("顯示目前持有的道具與金幣。", detailX, detailY + 40);
+        //g2d.drawString("左側欄位僅作為裝備狀態顯示。", detailX, detailY + 58);
+
+        java.util.List<String> bagItems = new java.util.ArrayList<>();
+        bagItems.add("小藥 x" + player.smallPotions);
+        bagItems.add("大藥 x" + player.largePotions);
+        bagItems.add("金幣 x" + player.gold);
+
+        int itemY = detailY + 84;
+        for (String item : bagItems) {
+            g2d.setColor(Color.WHITE);
+            g2d.setFont(new Font("Microsoft JhengHei", Font.PLAIN, 15));
+            g2d.drawString("- " + item, detailX, itemY);
+            itemY += 32;
+        }
+
+        g2d.setColor(new Color(188, 204, 232));
+        g2d.setFont(new Font("Microsoft JhengHei", Font.PLAIN, 12));
+        g2d.drawString("滑鼠滾輪可滾動項目", detailX, innerY + innerH - 14);
+    }
+
+    private void drawEquipmentActorPanel(Graphics2D g2d, boolean playerActor, int x, int y, int w, int h) {
+        int panelIndex = playerActor ? -1 : 0;
+        String actorName = playerActor ? player.name : companions.get(0).name;
+        Color top = playerActor ? new Color(62, 86, 138) : new Color(52, 102, 96);
+        Color bottom = playerActor ? new Color(28, 42, 74) : new Color(28, 64, 58);
+        Color accent = playerActor ? new Color(146, 188, 255) : new Color(150, 236, 214);
+
+        g2d.setPaint(new GradientPaint(x, y, top, x, y + h, bottom));
+        g2d.fillRoundRect(x, y, w, h, 10, 10);
+        g2d.setColor(accent);
+        g2d.drawRoundRect(x, y, w, h, 10, 10);
+
+        g2d.setColor(Color.WHITE);
+        g2d.setFont(new Font("Microsoft JhengHei", Font.BOLD, 14));
+        g2d.drawString(actorName, x + 12, y + 20);
+
+        g2d.setFont(new Font("Microsoft JhengHei", Font.PLAIN, 11));
+        g2d.setColor(new Color(220, 230, 250));
+        g2d.drawString(playerActor ? "勇者裝備區" : "月的裝備區", x + 12, y + 36);
+
+        g2d.setColor(new Color(190, 210, 240));
+        g2d.setFont(new Font("Microsoft JhengHei", Font.PLAIN, 11));
+        g2d.drawString("點一下欄位僅查看狀態", x + w - 124, y + 20);
+
+        Rectangle[] rects = playerActor ? heroEquipmentSlotRects : moonEquipmentSlotRects;
+        int slotY = y + 46;
+        int slotH = 28;
+        int slotGap = 5;
+        for (int i = 0; i < EQUIPMENT_SLOT_COUNT; i++) {
+            Rectangle slotRect = new Rectangle(x + 10, slotY, w - 20, slotH);
+            rects[i] = slotRect;
+
+            boolean selected = selectedEquipmentActor == panelIndex && selectedEquipmentSlot == i;
+            EquipmentItem item = getEquipmentItem(playerActor, i);
+
+            if (selected) {
+                g2d.setPaint(new GradientPaint(slotRect.x, slotRect.y, new Color(122, 160, 238), slotRect.x,
+                        slotRect.y + slotRect.height, new Color(62, 98, 182)));
+            } else {
+                g2d.setPaint(new GradientPaint(slotRect.x, slotRect.y, new Color(52, 66, 98), slotRect.x,
+                        slotRect.y + slotRect.height, new Color(34, 45, 72)));
+            }
+            g2d.fillRoundRect(slotRect.x, slotRect.y, slotRect.width, slotRect.height, 7, 7);
+            g2d.setColor(selected ? new Color(225, 236, 255) : new Color(124, 141, 177));
+            g2d.drawRoundRect(slotRect.x, slotRect.y, slotRect.width, slotRect.height, 7, 7);
+
+            g2d.setFont(new Font("Microsoft JhengHei", Font.PLAIN, 11));
+            g2d.setColor(new Color(214, 224, 245));
+            g2d.drawString(EQUIPMENT_SLOT_LABELS[i] + "：", slotRect.x + 10, slotRect.y + 18);
+
+            String displayName = getEquipmentDisplayName(playerActor, i);
+            if (!displayName.isEmpty()) {
+                g2d.setColor(item == null ? new Color(170, 180, 195) : Color.WHITE);
+                g2d.drawString(displayName, slotRect.x + 84, slotRect.y + 18);
+            }
+
+            slotY += slotH + slotGap;
+        }
+    }
+
+    private void drawEquipmentSummaryLines(Graphics2D g2d, int x, int y, String[] lines) {
+        int lineY = y;
+        for (String line : lines) {
+            g2d.drawString(line, x, lineY);
+            lineY += 18;
+        }
+    }
+
+    private String[] getEquipmentSummaryLines(boolean playerActor) {
+        String actorName = playerActor ? player.name : companions.get(0).name;
+        return new String[] {
+                actorName + " - " + EquipmentCatalog.slotLabel(0) + "：" + getEquipmentDisplayName(playerActor, 0),
+                EquipmentCatalog.slotLabel(1) + "：" + getEquipmentDisplayName(playerActor, 1),
+                EquipmentCatalog.slotLabel(2) + "：" + getEquipmentDisplayName(playerActor, 2),
+                EquipmentCatalog.slotLabel(3) + "：" + getEquipmentDisplayName(playerActor, 3),
+                EquipmentCatalog.slotLabel(4) + "：" + getEquipmentDisplayName(playerActor, 4)
+        };
+    }
+
+    private boolean handleEquipmentTabClick(Point p) {
+        if (selectedMapTab != 1) {
+            return false;
+        }
+
+        for (int i = 0; i < EQUIPMENT_SLOT_COUNT; i++) {
+            Rectangle slotRect = heroEquipmentSlotRects[i];
+            if (slotRect != null && slotRect.contains(p)) {
+                selectedEquipmentActor = -1;
+                selectedEquipmentSlot = i;
+                openEquipmentSelectionDialog(true, i);
+                return true;
+            }
+        }
+
+        for (int i = 0; i < EQUIPMENT_SLOT_COUNT; i++) {
+            Rectangle slotRect = moonEquipmentSlotRects[i];
+            if (slotRect != null && slotRect.contains(p)) {
+                selectedEquipmentActor = 0;
+                selectedEquipmentSlot = i;
+                openEquipmentSelectionDialog(false, i);
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private void openEquipmentSelectionDialog(boolean playerActor, int slotIndex) {
+        EquipmentItem currentItem = getEquipmentItem(playerActor, slotIndex);
+        String currentName = getEquipmentDisplayName(playerActor, slotIndex);
+        String message = EquipmentCatalog.slotLabel(slotIndex) + " 目前為：" + (currentName.isEmpty() ? "空白" : currentName);
+        if (currentItem == null) {
+            message += "\n目前沒有其他可裝備的物品。";
+        } else {
+            message += "\n目前沒有其他可替換的裝備。";
+        }
+        JOptionPane.showMessageDialog(this, message, (playerActor ? player.name : companions.get(0).name) + " - " + EquipmentCatalog.slotLabel(slotIndex), JOptionPane.INFORMATION_MESSAGE);
+    }
+
+    private EquipmentItem getEquipmentItem(boolean playerActor, int slotIndex) {
+        if (playerActor) {
+            switch (slotIndex) {
+                case 0:
+                    return player.weapon;
+                case 1:
+                    return player.clothes;
+                case 2:
+                    return player.shoes;
+                case 3:
+                    return player.accessory1;
+                case 4:
+                    return player.accessory2;
+                default:
+                    return null;
+            }
+        }
+
+        if (companions.isEmpty()) {
+            return null;
+        }
+
+        Companion moon = companions.get(0);
+        switch (slotIndex) {
+            case 0:
+                return moon.weapon;
+            case 1:
+                return moon.clothes;
+            case 2:
+                return moon.shoes;
+            case 3:
+                return moon.accessory1;
+            case 4:
+                return moon.accessory2;
+            default:
+                return null;
+        }
+    }
+
+    private void setEquipmentItem(boolean playerActor, int slotIndex, EquipmentItem newItem) {
+        if (playerActor) {
+            EquipmentItem oldItem = getEquipmentItem(true, slotIndex);
+            applyEquipmentChange(player, oldItem, newItem);
+            switch (slotIndex) {
+                case 0:
+                    player.weapon = newItem;
+                    break;
+                case 1:
+                    player.clothes = newItem;
+                    break;
+                case 2:
+                    player.shoes = newItem;
+                    break;
+                case 3:
+                    player.accessory1 = newItem;
+                    break;
+                case 4:
+                    player.accessory2 = newItem;
+                    break;
+                default:
+                    break;
+            }
+            return;
+        }
+
+        if (companions.isEmpty()) {
+            return;
+        }
+
+        Companion moon = companions.get(0);
+        EquipmentItem oldItem = getEquipmentItem(false, slotIndex);
+        applyEquipmentChange(moon, oldItem, newItem);
+        switch (slotIndex) {
+            case 0:
+                moon.weapon = newItem;
+                break;
+            case 1:
+                moon.clothes = newItem;
+                break;
+            case 2:
+                moon.shoes = newItem;
+                break;
+            case 3:
+                moon.accessory1 = newItem;
+                break;
+            case 4:
+                moon.accessory2 = newItem;
+                break;
+            default:
+                break;
+        }
+    }
+
+    private void applyEquipmentChange(Player actor, EquipmentItem oldItem, EquipmentItem newItem) {
+        if (oldItem != null) {
+            actor.patk -= oldItem.patkBonus;
+            actor.pdef -= oldItem.pdefBonus;
+            actor.matk -= oldItem.matkBonus;
+            actor.mdef -= oldItem.mdefBonus;
+            actor.battleSpeed -= oldItem.battleSpeedBonus;
+        }
+        if (newItem != null) {
+            actor.patk += newItem.patkBonus;
+            actor.pdef += newItem.pdefBonus;
+            actor.matk += newItem.matkBonus;
+            actor.mdef += newItem.mdefBonus;
+            actor.battleSpeed += newItem.battleSpeedBonus;
+        }
+    }
+
+    private void applyEquipmentChange(Companion actor, EquipmentItem oldItem, EquipmentItem newItem) {
+        if (oldItem != null) {
+            actor.patk -= oldItem.patkBonus;
+            actor.pdef -= oldItem.pdefBonus;
+            actor.matk -= oldItem.matkBonus;
+            actor.mdef -= oldItem.mdefBonus;
+            actor.battleSpeed -= oldItem.battleSpeedBonus;
+        }
+        if (newItem != null) {
+            actor.patk += newItem.patkBonus;
+            actor.pdef += newItem.pdefBonus;
+            actor.matk += newItem.matkBonus;
+            actor.mdef += newItem.mdefBonus;
+            actor.battleSpeed += newItem.battleSpeedBonus;
+        }
+    }
+
+    private String getEquipmentDisplayName(boolean playerActor, int slotIndex) {
+        EquipmentItem item = getEquipmentItem(playerActor, slotIndex);
+        if (item != null) {
+            return item.name;
+        }
+        return EquipmentCatalog.defaultName(slotIndex);
+    }
+
+    private static final int EQUIPMENT_SLOT_COUNT = 5;
 
     @Override
     public void actionPerformed(ActionEvent e) {
@@ -1592,8 +1906,8 @@ class GamePanel extends JPanel implements ActionListener, KeyListener, MouseList
         }
         
         if (state == 0) {
-            // 如果有菜單打開，則暫停遊戲邏輯（不更新敵人、隊友、碰撞等）
-            if (showMapMenu) {
+            // 如果有菜單或商店打開，則暫停遊戲邏輯（不更新敵人、隊友、碰撞等）
+            if (showMapMenu || shopOpen) {
                 repaint();
                 return;
             }
@@ -2355,7 +2669,12 @@ class GamePanel extends JPanel implements ActionListener, KeyListener, MouseList
         if (state == 0) {
             if (e.getButton() == MouseEvent.BUTTON3) {
                 if (!showMapMenu && isNearShopNpc()) {
-                    Shop.showShop(this);
+                    shopOpen = true;
+                    try {
+                        Shop.showShop(this);
+                    } finally {
+                        shopOpen = false;
+                    }
                 }
                 return;
             }
@@ -2379,6 +2698,8 @@ class GamePanel extends JPanel implements ActionListener, KeyListener, MouseList
                 if (bagTabRect != null && bagTabRect.contains(p)) {
                     selectedMapTab = 1;
                     bagScrollOffset = 0;
+                    selectedEquipmentActor = -1;
+                    selectedEquipmentSlot = 0;
                     return;
                 }
                 if (saveTabRect != null && saveTabRect.contains(p)) {
@@ -2425,6 +2746,10 @@ class GamePanel extends JPanel implements ActionListener, KeyListener, MouseList
                             return;
                         }
                     }
+                }
+
+                if (selectedMapTab == 1 && handleEquipmentTabClick(p)) {
+                    return;
                 }
 
                 // 選單開啟時，點擊內容區外不觸發移動
@@ -3649,6 +3974,11 @@ class GamePanel extends JPanel implements ActionListener, KeyListener, MouseList
             state.smallPotions = player.smallPotions;
             state.largePotions = player.largePotions;
             state.gold = player.gold;
+            state.playerWeapon = player.weapon;
+            state.playerClothes = player.clothes;
+            state.playerShoes = player.shoes;
+            state.playerAccessory1 = player.accessory1;
+            state.playerAccessory2 = player.accessory2;
             
             // 保存隊友狀態（假設只有一個隊友）
             if (!companions.isEmpty()) {
@@ -3667,6 +3997,11 @@ class GamePanel extends JPanel implements ActionListener, KeyListener, MouseList
                 state.companionMdef = c.mdef;
                 state.companionLevel = c.level;
                 state.companionExp = c.exp;
+                state.companionWeapon = c.weapon;
+                state.companionClothes = c.clothes;
+                state.companionShoes = c.shoes;
+                state.companionAccessory1 = c.accessory1;
+                state.companionAccessory2 = c.accessory2;
             }
             
             // 保存地圖信息
@@ -3741,6 +4076,11 @@ class GamePanel extends JPanel implements ActionListener, KeyListener, MouseList
             player.smallPotions = gameStateData.smallPotions;
             player.largePotions = gameStateData.largePotions;
             player.gold = gameStateData.gold;
+            player.weapon = gameStateData.playerWeapon;
+            player.clothes = gameStateData.playerClothes;
+            player.shoes = gameStateData.playerShoes;
+            player.accessory1 = gameStateData.playerAccessory1;
+            player.accessory2 = gameStateData.playerAccessory2;
             
             // 恢復隊友狀態
             if (!companions.isEmpty()) {
@@ -3760,6 +4100,11 @@ class GamePanel extends JPanel implements ActionListener, KeyListener, MouseList
                 c.mdef = gameStateData.companionMdef;
                 c.level = gameStateData.companionLevel;
                 c.exp = gameStateData.companionExp;
+                c.weapon = gameStateData.companionWeapon;
+                c.clothes = gameStateData.companionClothes;
+                c.shoes = gameStateData.companionShoes;
+                c.accessory1 = gameStateData.companionAccessory1;
+                c.accessory2 = gameStateData.companionAccessory2;
             }
             
             // 恢復地圖

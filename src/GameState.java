@@ -31,6 +31,11 @@ public class GameState implements Serializable {
     public int playerPdef;
     public int playerMatk;
     public int playerMdef;
+    public EquipmentItem playerWeapon;
+    public EquipmentItem playerClothes;
+    public EquipmentItem playerShoes;
+    public EquipmentItem playerAccessory1;
+    public EquipmentItem playerAccessory2;
     
     // 玩家背包物品
     public int smallPotions;
@@ -52,6 +57,11 @@ public class GameState implements Serializable {
     public int companionMdef;
     public int companionLevel;
     public int companionExp;
+    public EquipmentItem companionWeapon;
+    public EquipmentItem companionClothes;
+    public EquipmentItem companionShoes;
+    public EquipmentItem companionAccessory1;
+    public EquipmentItem companionAccessory2;
     
     // 地圖和敵人狀態
     public int currentMapIndex;
