@@ -155,6 +155,10 @@ class GameInputHandler {
                     game.mouseDown = false;
                     game.keyDown = true;
                     break;
+                case KeyEvent.VK_B:
+                    // 按 B 開商店
+                    Shop.showShop(game);
+                    break;
                 default:
                     break;
             }
