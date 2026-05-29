@@ -10,144 +10,166 @@ import java.io.*;
 import javax.sound.sampled.*;
 
 class GamePanel extends JPanel implements ActionListener, KeyListener, MouseListener, MouseMotionListener, MouseWheelListener {
-    private javax.swing.Timer timer;
-    private Player player;
-    private java.util.List<Enemy> enemies;
-    private int[][] map;
-    private final int TILE_SIZE = 40;
-    private final double BATTLE_PLAYER_SCALE = 1.0;
-    private final double HERO_PORTRAIT_SCALE = 1.90;
-    private final double MOON_PORTRAIT_SCALE = 2.90;
+    javax.swing.Timer timer;
+    Player player;
+    java.util.List<Enemy> enemies;
+    int[][] map;
+    final int TILE_SIZE = 40;
+    final double BATTLE_PLAYER_SCALE = 1.0;
+    final int BOSS_MAP_INDEX = 2;
+    final double MAP_RIGHT_WIDTH_SCALE = 2;
+    final double MAP_LEFT_WIDTH_SCALE = 1.5;
+    final double MAP_RIGHT_HEIGHT_SCALE = 1.7; // 调整正右/右走圖片高度用
+    final double MAP_LEFT_HEIGHT_SCALE = 1.2375;
 
     // multi-map support
-    private int mapIndex = 0;
-    private int[][][] allMaps;
-    private java.util.List<java.util.List<Enemy>> allEnemies;
+    int mapIndex = 0;
+    int[][][] allMaps;
+    java.util.List<java.util.List<Enemy>> allEnemies;
 
     // 小遊戲狀態：-1 開始菜單, 0 普通遊戲, 1 戰鬥中, 2 戰鬥結算
-    private int state = -1;  // 初始為開始菜單
-    private java.util.List<Enemy> currentEnemies = new java.util.ArrayList<>();  // 當前戰鬥中的敵人列表
-    private java.util.List<Enemy> originalBattleEnemies = new java.util.ArrayList<>();  // 參與當前戰鬥的原始敵人列表（用於逃跑時標記）
-    private Enemy triggeredEnemy = null;  // 觸發戰鬥的敵人
+    int state = -1;  // 初始為開始菜單
+    java.util.List<Enemy> currentEnemies = new java.util.ArrayList<>();  // 當前戰鬥中的敵人列表
+    java.util.List<Enemy> originalBattleEnemies = new java.util.ArrayList<>();  // 參與當前戰鬥的原始敵人列表（用於逃跑時標記）
+    Enemy triggeredEnemy = null;  // 觸發戰鬥的敵人
+
+        // 魔王殿劇情（第一次進入）
+        boolean bossCutsceneActive = false;
+        boolean bossCutscenePlayed = false;
+        boolean bossDefeated = false;
+        int bossCutsceneIndex = 0;
+        boolean bossCutscenePositioned = false;
+        final String[] bossCutsceneLines = {
+            "魔王: 你終於來了，勇者。",
+            "勇者: 我會終結這場黑暗。",
+            "月: 小心，牠的力量比傳聞更可怕。",
+            "魔王: 來吧，讓我看看你的決心。"
+        };
     
     // 開始菜單選項
-    private int selectedMainMenuOption = 0;  // 0 = NEW, 1 = LOAD, 2 = EXIT
-    private Rectangle newGameRect, loadGameRect, exitRect;
-    private boolean showLoadMenu = false;  // 是否顯示加載菜單
-    private int selectedLoadSlot = 0;  // 加載菜單中選中的槽位
+    int selectedMainMenuOption = 0;  // 0 = NEW, 1 = LOAD, 2 = EXIT
+    Rectangle newGameRect, loadGameRect, exitRect;
+    boolean showLoadMenu = false;  // 是否顯示加載菜單
+    int selectedLoadSlot = 0;  // 加載菜單中選中的槽位
     // private String battleMessage = ""; // 戰鬥中的提示文字
 
     // 結算畫面資訊
-    private int lastBattleExp = 0; // 本場獲得的經驗值
-    private int expForNextLevel = 0; // 升級還需要的經驗值
-    private int levelsGained = 0; // 玩家本場升級次數
-    private int[] companionLevelsGained = new int[4];  // 伴侶本場升級次數（最多4個）
-    private int[] companionExpForNextLevel = new int[4];  // 伴侶升級還需要的經驗值
-    private String settlementDrops = ""; // 掉落物品文字
-    private String previewDrops = ""; // 戰鬥中預覽的掉落物品文字
-    private boolean isZeroExpSettlement = false; // 標記是否為敵人逃跑的無經驗結算
+    int lastBattleExp = 0; // 本場獲得的經驗值
+    int expForNextLevel = 0; // 升級還需要的經驗值
+    int levelsGained = 0; // 玩家本場升級次數
+    int[] companionLevelsGained = new int[4];  // 伴侶本場升級次數（最多4個）
+    int[] companionExpForNextLevel = new int[4];  // 伴侶升級還需要的經驗值
+    String settlementDrops = ""; // 掉落物品文字
+    String previewDrops = ""; // 戰鬥中預覽的掉落物品文字
+    boolean isZeroExpSettlement = false; // 標記是否為敵人逃跑的無經驗結算
     
     // 逃跑結果訊息
-    private String fleeMessage = ""; // 逃跑結果訊息（成功或失敗）
-    private boolean showingFleeMessage = false; // 是否顯示逃跑訊息
+    String fleeMessage = ""; // 逃跑結果訊息（成功或失敗）
+    boolean showingFleeMessage = false; // 是否顯示逃跑訊息
 
     // 地圖介面選單
-    private Rectangle menuRect;
-    private Rectangle mapMenuPanelRect;
-    private Rectangle statusTabRect;
-    private Rectangle bagTabRect;
-    private Rectangle saveTabRect;
-    private Rectangle statusPlayerSelectorRect;
-    private Rectangle[] statusCompanionSelectorRects = new Rectangle[4];
-    private boolean showMapMenu = false;
-    private int selectedMapTab = 0;  // 0=狀態, 1=背包, 2=保存
-    private int hoveredMapTab = -1;
-    private int selectedStatusActor = -1; // -1=玩家, 0..n=隊友
-    private int selectedSaveSlot = 0;  // 當前選中的保存槽位
-    private int bagScrollOffset = 0;  // 背包滾動偏移
-    private final int BAG_VISIBLE_ITEMS = 8;  // 顯示項目數
-    private final int MAX_SAVE_SLOTS = 3;  // 最多3個存檔槽位
-    private static final String SAVE_DIR_NAME = "saves";
-    private static final String SAVE_FILE_PREFIX = "savegame_";
-    private static final String SAVE_FILE_EXT = ".dat";
+    Rectangle menuRect;
+    Rectangle mapMenuPanelRect;
+    Rectangle statusTabRect;
+    Rectangle bagTabRect;
+    Rectangle saveTabRect;
+    Rectangle statusPlayerSelectorRect;
+    Rectangle[] statusCompanionSelectorRects = new Rectangle[4];
+    boolean showMapMenu = false;
+    int selectedMapTab = 0;  // 0=狀態, 1=背包, 2=保存
+    int hoveredMapTab = -1;
+    int selectedStatusActor = -1; // -1=玩家, 0..n=隊友
+    int selectedSaveSlot = 0;  // 當前選中的保存槽位
+    int bagScrollOffset = 0;  // 背包滾動偏移
+    final int BAG_VISIBLE_ITEMS = 8;  // 顯示項目數
+    final int MAX_SAVE_SLOTS = 3;  // 最多3個存檔槽位
+    static final String SAVE_DIR_NAME = "saves";
+    static final String SAVE_FILE_PREFIX = "savegame_";
+    static final String SAVE_FILE_EXT = ".dat";
 
     // 戰鬥動畫
-    private boolean animating = false;
-    private int animTicks = 0;
-    private final int ANIM_DURATION = 60; // 幀數，約2秒（移動0.5秒 + 等待1秒 + 返回0.5秒）
-    private String animAction = ""; // "playerAttack", "waitBeforeFlee" 或 "enemyAttack"
-    private Skill selectedSkill = null; // 當前選擇的戰技（null 表示普通攻擊）
-    private String selectingTargetMode = "";  // 目標選擇模式: "", "attack", "skill", "potion"
-    private String selectingPotionType = "";  // 選擇的藥物類型: "small" 或 "large"（在potion模式中使用）
-    private int targetingEnemyIndex = -1;  // 目標敵人的索引，用於動畫調整
-    private int currentAttackingEnemyIndex = -1;  // 當前攻擊敵人的索引（敵人攻擊時使用）
-    private boolean enemyAttackTargetIsPlayer = true;  // 敵人本次攻擊是否以玩家為目標
-    private int enemyAttackTargetCompanionIndex = -1;  // 敵人本次攻擊的隊友目標索引
-    private java.util.List<Integer> enemyBattleSlots = new java.util.ArrayList<>();  // 敵人的固定站位槽位
-    private int[] battleScreenEnemyX = new int[10];  // 敵人在戰鬥螢幕上的X坐標（支持最多10個敵人）
-    private int[] battleScreenEnemyY = new int[10];  // 敵人在戰鬥螢幕上的Y坐標（支持最多10個敵人）
-    private int hoveredEnemyIndex = -1;  // 鼠標懸停的敵人索引，-1表示無敵人懸停
-    private int damagedEnemyIndex = -1;  // 受傷的敵人索引，用於顯示傷害血條
-    private int damagedEnemyTicks = 0;  // 受傷敵人血條顯示計時
-    private final int DAMAGE_DISPLAY_DURATION = 60; // 傷害血條顯示時長（幀數）
-    private final int HEAL_GLOW_DURATION = 40; // 治療高亮時長（幀數）
-    private boolean playerTakingDamage = false;  // 玩家是否正在受傷
-    private int playerDamageTicks = 0;  // 玩家受傷血條顯示計時
-    private int[] companionTakingDamage = new int[4];  // 隊友是否正在受傷（使用計時值）
-    private int playerHealGlowTicks = 0;  // 玩家治療發光計時
-    private int[] companionHealGlowTicks = new int[4];  // 隊友治療發光計時
-    private int battleScreenPlayerX = 0;  // 玩家在戰鬥螢幕上的X坐標
-    private int battleScreenPlayerY = 0;  // 玩家在戰鬥螢幕上的Y坐標
-    private int[] battleScreenCompanionX = new int[4];  // 隊友在戰鬥螢幕上的X坐標
-    private int[] battleScreenCompanionY = new int[4];  // 隊友在戰鬥螢幕上的Y坐標
-    private BufferedImage battlePlayerSprite;
+    boolean animating = false;
+    int animTicks = 0;
+    final int ANIM_DURATION = 60; // 幀數，約2秒（移動0.5秒 + 等待1秒 + 返回0.5秒）
+    String animAction = ""; // "playerAttack", "waitBeforeFlee" 或 "enemyAttack"
+    Skill selectedSkill = null; // 當前選擇的戰技（null 表示普通攻擊）
+    String selectingTargetMode = "";  // 目標選擇模式: "", "attack", "skill", "potion"
+    String selectingPotionType = "";  // 選擇的藥物類型: "small" 或 "large"（在potion模式中使用）
+    int targetingEnemyIndex = -1;  // 目標敵人的索引，用於動畫調整
+    int currentAttackingEnemyIndex = -1;  // 當前攻擊敵人的索引（敵人攻擊時使用）
+    boolean enemyAttackTargetIsPlayer = true;  // 敵人本次攻擊是否以玩家為目標
+    int enemyAttackTargetCompanionIndex = -1;  // 敵人本次攻擊的隊友目標索引
+    java.util.List<Integer> enemyBattleSlots = new java.util.ArrayList<>();  // 敵人的固定站位槽位
+    int[] battleScreenEnemyX = new int[10];  // 敵人在戰鬥螢幕上的X坐標（支持最多10個敵人）
+    int[] battleScreenEnemyY = new int[10];  // 敵人在戰鬥螢幕上的Y坐標（支持最多10個敵人）
+    int hoveredEnemyIndex = -1;  // 鼠標懸停的敵人索引，-1表示無敵人懸停
+    int damagedEnemyIndex = -1;  // 受傷的敵人索引，用於顯示傷害血條
+    int damagedEnemyTicks = 0;  // 受傷敵人血條顯示計時
+    final int DAMAGE_DISPLAY_DURATION = 60; // 傷害血條顯示時長（幀數）
+    final int HEAL_GLOW_DURATION = 40; // 治療高亮時長（幀數）
+    boolean playerTakingDamage = false;  // 玩家是否正在受傷
+    int playerDamageTicks = 0;  // 玩家受傷血條顯示計時
+    int[] companionTakingDamage = new int[4];  // 隊友是否正在受傷（使用計時值）
+    int playerHealGlowTicks = 0;  // 玩家治療發光計時
+    int[] companionHealGlowTicks = new int[4];  // 隊友治療發光計時
+    int battleScreenPlayerX = 0;  // 玩家在戰鬥螢幕上的X坐標
+    int battleScreenPlayerY = 0;  // 玩家在戰鬥螢幕上的Y坐標
+    int[] battleScreenCompanionX = new int[4];  // 隊友在戰鬥螢幕上的X坐標
+    int[] battleScreenCompanionY = new int[4];  // 隊友在戰鬥螢幕上的Y坐標
+    BufferedImage battlePlayerSprite;
 
     // 地圖玩家圖片
-    private BufferedImage playerIdleRight;
-    private BufferedImage playerIdleLeft;
-    private BufferedImage playerWalkRight1;
-    private BufferedImage playerWalkRight2;
-    private BufferedImage playerWalkLeft1;
-    private BufferedImage playerWalkLeft2;
-    private BufferedImage heroPortrait;
-    private BufferedImage moonPortrait;
+    BufferedImage playerIdleRight;
+    BufferedImage playerIdleLeft;
+    BufferedImage playerWalkRight1;
+    BufferedImage playerWalkRight2;
+    BufferedImage playerWalkLeft1;
+    BufferedImage playerWalkLeft2;
+    BufferedImage statusPortraitImage;
+    BufferedImage heroPortrait;
+    BufferedImage moonPortrait;
+    final double HERO_PORTRAIT_SCALE = 1.0;
+    final double MOON_PORTRAIT_SCALE = 1.0;
 
     // 玩家目前面向方向：true = 右，false = 左
-    private boolean playerFacingRight = true;
+    boolean playerFacingRight = true;
 
     // 走路動畫計時
-    private int playerWalkAnimTick = 0;
+    int playerWalkAnimTick = 0;
 
     // 數字越小，左右腳切換越快
-    private final int PLAYER_WALK_FRAME_DELAY = 8;
+    final int PLAYER_WALK_FRAME_DELAY = 8;
 
     // 當前行動角色
-    private Object currentActor = null; // 當前正在行動的角色（Player 或 Companion）
-    private boolean waitingForPlayerDecision = false; // 是否等待玩家決定行動
+    Object currentActor = null; // 當前正在行動的角色（Player 或 Companion）
+    boolean waitingForPlayerDecision = false; // 是否等待玩家決定行動
 
     // 戰鬥按鈕區域
-    private Rectangle attackRect;
-    private Rectangle healRect;
-    private Rectangle skillRect;
-    private Rectangle runRect;
+    Rectangle attackRect;
+    Rectangle healRect;
+    Rectangle skillRect;
+    Rectangle runRect;
 
-    private boolean mouseDown = false; // 是否按住滑鼠
-    private int mouseGridX, mouseGridY; // 滑鼠所在的格子
-    private boolean keyDown = false; // 有方向鍵在按下
+    boolean mouseDown = false; // 是否按住滑鼠
+    int mouseGridX, mouseGridY; // 滑鼠所在的格子
+    boolean keyDown = false; // 有方向鍵在按下
 
     // 音樂播放
-    private Clip bgmClip;
-    private String currentMusicFile = "";
+    Clip bgmClip;
+    String currentMusicFile = "";
 
     // 行動順序系統
-    private java.util.List<BattleUnit> battleOrder = new java.util.ArrayList<>();
-    private int currentActionIndex = 0;
+    java.util.List<BattleUnit> battleOrder = new java.util.ArrayList<>();
+    int currentActionIndex = 0;
 
     // 隊友系統
-    private java.util.List<Companion> companions = new java.util.ArrayList<>();
+    java.util.List<Companion> companions = new java.util.ArrayList<>();
+
+    MapManager mapManager;
+    BattleManager battleManager;
     
     // 玩家路徑追蹤系統（用於隊友跟隨）
-    private java.util.LinkedList<double[]> playerPathHistory = new java.util.LinkedList<>();
+    java.util.LinkedList<double[]> playerPathHistory = new java.util.LinkedList<>();
 
     public GamePanel() {
         setBackground(Color.BLACK);
@@ -159,6 +181,9 @@ class GamePanel extends JPanel implements ActionListener, KeyListener, MouseList
         
         // 確保獲取焦點
         setRequestFocusEnabled(true);
+
+        mapManager = new MapManager(this);
+        battleManager = new BattleManager(this);
 
         initMaps();
         player = new Player(2 * TILE_SIZE, 2 * TILE_SIZE);
@@ -187,8 +212,9 @@ class GamePanel extends JPanel implements ActionListener, KeyListener, MouseList
         playerWalkLeft1 = loadSprite("左1.png");
         playerWalkLeft2 = loadSprite("左2.png");
 
-        heroPortrait = loadSprite("正面立繪.png");
-        moonPortrait = loadSprite("正面立繪 月.png");
+        statusPortraitImage = loadSprite("正面立繪.png");
+        heroPortrait = statusPortraitImage;
+        moonPortrait = statusPortraitImage;
 
         // 戰鬥畫面先用正右，也可以之後改成依方向切換
         battlePlayerSprite = playerIdleRight;
@@ -208,9 +234,10 @@ class GamePanel extends JPanel implements ActionListener, KeyListener, MouseList
         return null;
     }
 
-    private BufferedImage getCurrentPlayerSprite() {
-        boolean movingRight = player.vx > 0;
-        boolean movingLeft = player.vx < 0;
+    BufferedImage getCurrentPlayerSprite() {
+        boolean movingVertically = player.vx == 0 && player.vy != 0;
+        boolean movingRight = player.vx > 0 || (movingVertically && playerFacingRight);
+        boolean movingLeft = player.vx < 0 || (movingVertically && !playerFacingRight);
 
         // 向右走：右1 > 右2 > 右1 > 右2...
         if (movingRight) {
@@ -236,7 +263,7 @@ class GamePanel extends JPanel implements ActionListener, KeyListener, MouseList
         return playerFacingRight ? playerIdleRight : playerIdleLeft;
     }
 
-    private void updatePlayerWalkAnimation() {
+    void updatePlayerWalkAnimation() {
         if (player.vx != 0) {
             playerWalkAnimTick++;
         } else {
@@ -244,21 +271,39 @@ class GamePanel extends JPanel implements ActionListener, KeyListener, MouseList
         }
     }
 
-    private int getMapPlayerDrawSize(BufferedImage sprite, int baseSize) {
-        if (sprite == playerIdleRight
+    private boolean isRightFacingSprite(BufferedImage sprite) {
+        return sprite == playerIdleRight
                 || sprite == playerWalkRight1
-                || sprite == playerWalkRight2) {
-            return (int) Math.round(baseSize * 1.8);
-        }
-        if (sprite == playerIdleLeft
+                || sprite == playerWalkRight2;
+    }
+
+    private boolean isLeftFacingSprite(BufferedImage sprite) {
+        return sprite == playerIdleLeft
                 || sprite == playerWalkLeft1
-                || sprite == playerWalkLeft2) {
-            return (int) Math.round(baseSize * 1.44);
+                || sprite == playerWalkLeft2;
+    }
+
+    int getMapPlayerDrawWidth(BufferedImage sprite, int baseSize) {
+        if (isRightFacingSprite(sprite)) {
+            return (int) Math.round(baseSize * MAP_RIGHT_WIDTH_SCALE);
+        }
+        if (isLeftFacingSprite(sprite)) {
+            return (int) Math.round(baseSize * MAP_LEFT_WIDTH_SCALE);
         }
         return baseSize;
     }
 
-    private BufferedImage getBattlePlayerSprite(int moveDir) {
+    int getMapPlayerDrawHeight(BufferedImage sprite, int baseSize) {
+        if (isRightFacingSprite(sprite)) {
+            return (int) Math.round(baseSize * MAP_RIGHT_HEIGHT_SCALE);
+        }
+        if (isLeftFacingSprite(sprite)) {
+            return (int) Math.round(baseSize * MAP_LEFT_HEIGHT_SCALE);
+        }
+        return baseSize;
+    }
+
+    BufferedImage getBattlePlayerSprite(int moveDir) {
         if (moveDir > 0) {
             playerFacingRight = true;
             return (playerWalkAnimTick / PLAYER_WALK_FRAME_DELAY) % 2 == 0
@@ -276,7 +321,7 @@ class GamePanel extends JPanel implements ActionListener, KeyListener, MouseList
         return playerIdleRight;
     }
 
-    private void updatePlayerWalkAnimationForBattle(boolean moving) {
+    void updatePlayerWalkAnimationForBattle(boolean moving) {
         if (moving) {
             playerWalkAnimTick++;
         } else {
@@ -285,7 +330,7 @@ class GamePanel extends JPanel implements ActionListener, KeyListener, MouseList
     }
 
     private void initMaps() {
-        allMaps = new int[2][][];
+        allMaps = new int[3][][];
 
         // ------- 地圖 0：草原 -------
         allMaps[0] = new int[15][20];
@@ -311,8 +356,10 @@ class GamePanel extends JPanel implements ActionListener, KeyListener, MouseList
             for (int x = 0; x < 20; x++) {
                 boolean border = (x == 0 || y == 0 || x == 19 || y == 14);
                 // 左邊開傳送門出口（行 7-8）
-                boolean portal = (x == 0 && y >= 7 && y <= 8);
-                allMaps[1][y][x] = (border && !portal) ? 1 : 0;
+                boolean portalLeft = (x == 0 && y >= 7 && y <= 8);
+                // 右邊開傳送門出口（行 7-8）
+                boolean portalRight = (x == 19 && y >= 7 && y <= 8);
+                allMaps[1][y][x] = (border && !portalLeft && !portalRight) ? 1 : 0;
             }
         // 地下城內部墙壁
         allMaps[1][3][5] = 1;
@@ -329,10 +376,36 @@ class GamePanel extends JPanel implements ActionListener, KeyListener, MouseList
         allMaps[1][11][15] = 1;
         allMaps[1][12][15] = 1;
 
+        // ------- 地圖 2：魔王殿 -------
+        allMaps[2] = new int[15][20];
+        for (int y = 0; y < 15; y++)
+            for (int x = 0; x < 20; x++) {
+                boolean border = (x == 0 || y == 0 || x == 19 || y == 14);
+                // 左邊開傳送門出口（行 7-8）
+                boolean portalLeft = (x == 0 && y >= 7 && y <= 8);
+                allMaps[2][y][x] = (border && !portalLeft) ? 1 : 0;
+            }
+        // 魔王殿內部牆壁（環繞王座區）
+        for (int x = 6; x <= 13; x++) {
+            allMaps[2][4][x] = 1;
+            allMaps[2][10][x] = 1;
+        }
+        for (int y = 5; y <= 9; y++) {
+            allMaps[2][y][6] = 1;
+            allMaps[2][y][13] = 1;
+        }
+        // 王座前障礙
+        allMaps[2][8][9] = 1;
+        allMaps[2][8][10] = 1;
+        // 牆壁開口
+        allMaps[2][7][6] = 0;
+        allMaps[2][7][13] = 0;
+
         // ------- 敵人列表 -------
         allEnemies = new java.util.ArrayList<>();
         allEnemies.add(spawnEnemiesForMap(0));
         allEnemies.add(spawnEnemiesForMap(1));
+        allEnemies.add(spawnEnemiesForMap(2));
 
         map = allMaps[0];
         enemies = allEnemies.get(0);
@@ -343,10 +416,19 @@ class GamePanel extends JPanel implements ActionListener, KeyListener, MouseList
         if (idx == 0) {
             list.add(new Enemy(5, 3));
             list.add(new Enemy(7, 7));
-        } else {
+        } else if (idx == 1) {
             list.add(new Enemy(10, 4));
             list.add(new Enemy(15, 8));
             list.add(new Enemy(12, 11));
+        } else if (idx == 2) {
+            if (!bossDefeated) {
+                Enemy boss = new Enemy(10, 7, "魔王", 12, 520, 70, 24, 20, 320, 28, true);
+                boss.moveSpeed = 1.2;
+                boss.roamRadius = 3 * 40;
+                boss.detectRange = 6 * 40;
+                boss.chaseLoseRange = 8 * 40;
+                list.add(boss);
+            }
         }
         return list;
     }
@@ -609,18 +691,21 @@ class GamePanel extends JPanel implements ActionListener, KeyListener, MouseList
                 if (battleSprite == null) {
                     battleSprite = battlePlayerSprite;
                 }
-                int spriteSize = (int) Math.round(getMapPlayerDrawSize(battleSprite, basePlayerSpriteSize)
-                        * BATTLE_PLAYER_SCALE);
-                int half = spriteSize / 2;
+                int spriteW = (int) Math.round(getMapPlayerDrawWidth(battleSprite, basePlayerSpriteSize)
+                    * BATTLE_PLAYER_SCALE);
+                int spriteH = (int) Math.round(getMapPlayerDrawHeight(battleSprite, basePlayerSpriteSize)
+                    * BATTLE_PLAYER_SCALE);
+                int halfW = spriteW / 2;
+                int halfH = spriteH / 2;
                 if (battleSprite != null) {
-                    g2d.drawImage(battleSprite, actualPlayerX - half, actualPlayerY - half, spriteSize, spriteSize, null);
+                    g2d.drawImage(battleSprite, actualPlayerX - halfW, actualPlayerY - halfH, spriteW, spriteH, null);
 
                     if (playerHealGlow > 0) {
                         Composite oldComposite = g2d.getComposite();
                         g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER,
                                 (float) Math.min(0.45, playerHealGlow * 0.45)));
                         g2d.setColor(Color.WHITE);
-                        g2d.fillOval(actualPlayerX - half, actualPlayerY - half, spriteSize, spriteSize);
+                        g2d.fillOval(actualPlayerX - halfW, actualPlayerY - halfH, spriteW, spriteH);
                         g2d.setComposite(oldComposite);
                     }
 
@@ -628,7 +713,7 @@ class GamePanel extends JPanel implements ActionListener, KeyListener, MouseList
                         // 高亮邊框
                         g2d.setColor(Color.YELLOW);
                         g2d.setStroke(new BasicStroke(3));
-                        g2d.drawRoundRect(actualPlayerX - half - 2, actualPlayerY - half - 2, spriteSize + 4, spriteSize + 4, 8, 8);
+                        g2d.drawRoundRect(actualPlayerX - halfW - 2, actualPlayerY - halfH - 2, spriteW + 4, spriteH + 4, 8, 8);
                     }
                 } else if (isPlayerActive) {
                     g2d.setColor(blendToWhite(new Color(100, 150, 255), playerHealGlow));
@@ -752,8 +837,16 @@ class GamePanel extends JPanel implements ActionListener, KeyListener, MouseList
                     }
                 }
                 
-                g2d.setColor(Color.RED);
-                g2d.fillOval(actualEnemyX - 12, actualEnemyY - 12, 24, 24);
+                if (enemy.isBoss) {
+                    g2d.setColor(new Color(150, 40, 30));
+                    g2d.fillOval(actualEnemyX - 16, actualEnemyY - 16, 32, 32);
+                    g2d.setColor(new Color(240, 200, 120));
+                    g2d.setStroke(new BasicStroke(2f));
+                    g2d.drawOval(actualEnemyX - 16, actualEnemyY - 16, 32, 32);
+                } else {
+                    g2d.setColor(Color.RED);
+                    g2d.fillOval(actualEnemyX - 12, actualEnemyY - 12, 24, 24);
+                }
 
                 if (moonSliceAnimation) {
                     drawMoonSliceSlash(g2d, actualEnemyX, actualEnemyY);
@@ -832,12 +925,13 @@ class GamePanel extends JPanel implements ActionListener, KeyListener, MouseList
                 // 敵人名字
                 g2d.setColor(Color.WHITE);
                 g2d.setFont(new Font("Microsoft JhengHei", Font.BOLD, 13));
-                g2d.drawString("敵人" + (hoveredEnemyIndex + 1), infoPanelX + 10, infoPanelY + 18);
+                String enemyName = enemy.name != null ? enemy.name : ("敵人" + (hoveredEnemyIndex + 1));
+                g2d.drawString(enemyName, infoPanelX + 10, infoPanelY + 18);
                 
                 // 敵人等級
                 g2d.setColor(new Color(200, 200, 100));
                 g2d.setFont(new Font("Microsoft JhengHei", Font.PLAIN, 11));
-                g2d.drawString("Lv." + 5, infoPanelX + 10, infoPanelY + 35);
+                g2d.drawString("Lv." + enemy.level, infoPanelX + 10, infoPanelY + 35);
                 
                 // 敵人血量
                 g2d.setColor(new Color(255, 100, 100));
@@ -887,18 +981,29 @@ class GamePanel extends JPanel implements ActionListener, KeyListener, MouseList
             runRect = new Rectangle(startX + (btnW + gap) * 3, btnAreaY, btnW, btnH);
 
             // 繪製按鈕
+            boolean runDisabled = isBossBattleActive();
+            Composite oldComposite = g2d.getComposite();
+
             g2d.setColor(new Color(60, 60, 100));
             g2d.fill(attackRect);
             g2d.fill(skillRect);
             g2d.fill(healRect);
+            if (runDisabled) {
+                g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 0.45f));
+            }
             g2d.fill(runRect);
+            g2d.setComposite(oldComposite);
 
             g2d.setColor(new Color(150, 150, 200));
             g2d.setStroke(new BasicStroke(2));
             g2d.draw(attackRect);
             g2d.draw(skillRect);
             g2d.draw(healRect);
+            if (runDisabled) {
+                g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 0.45f));
+            }
             g2d.draw(runRect);
+            g2d.setComposite(oldComposite);
 
             // 繪製按鈕文字
             g2d.setColor(Color.WHITE);
@@ -912,7 +1017,13 @@ class GamePanel extends JPanel implements ActionListener, KeyListener, MouseList
                 Rectangle rect = btnRects[i];
                 int tX = rect.x + (rect.width - fm.stringWidth(text)) / 2;
                 int tY = rect.y + ((rect.height - fm.getHeight()) / 2) + fm.getAscent();
+                if (i == 3 && runDisabled) {
+                    g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 0.45f));
+                }
                 g2d.drawString(text, tX, tY);
+                if (i == 3 && runDisabled) {
+                    g2d.setComposite(oldComposite);
+                }
             }
 
             // 攻擊順序提示（左上角）
@@ -997,10 +1108,14 @@ class GamePanel extends JPanel implements ActionListener, KeyListener, MouseList
             floorA = new Color(0, 100, 0); // 草原深綠
             floorB = new Color(0, 120, 0); // 草原淺綠
             wallCol = new Color(100, 80, 50); // 泥土牆
-        } else {
+        } else if (mapIndex == 1) {
             floorA = new Color(40, 35, 30); // 地下城深
             floorB = new Color(55, 50, 42); // 地下城淺
             wallCol = new Color(80, 70, 60); // 石頭牆
+        } else {
+            floorA = new Color(60, 22, 18); // 魔王殿深
+            floorB = new Color(80, 30, 24); // 魔王殿淺
+            wallCol = new Color(120, 70, 50); // 深紅石牆
         }
         int arc = TILE_SIZE / 4;
         for (int y = 0; y < map.length; y++) {
@@ -1015,26 +1130,48 @@ class GamePanel extends JPanel implements ActionListener, KeyListener, MouseList
         }
 
         // 傳送門視覺效果
-        Color portalColor = (mapIndex == 0) ? new Color(255, 200, 50, 180) : new Color(80, 160, 255, 180);
-        g2d.setColor(portalColor);
+        g2d.setFont(new Font("Microsoft JhengHei", Font.BOLD, 11));
         if (mapIndex == 0) {
+            Color portalColor = new Color(255, 200, 50, 180);
+            g2d.setColor(portalColor);
             // 右邊界，第7-8行
             g2d.fillRoundRect(19 * TILE_SIZE, 7 * TILE_SIZE, TILE_SIZE, 2 * TILE_SIZE, 10, 10);
             g2d.setColor(portalColor.darker());
-            g2d.setFont(new Font("Microsoft JhengHei", Font.BOLD, 11));
             g2d.drawString("→地下城", 19 * TILE_SIZE - 4, 7 * TILE_SIZE - 4);
-        } else {
+        } else if (mapIndex == 1) {
+            Color leftPortal = new Color(80, 160, 255, 180);
+            Color rightPortal = new Color(220, 90, 70, 190);
             // 左邊界，第7-8行
+            g2d.setColor(leftPortal);
+            g2d.fillRoundRect(0, 7 * TILE_SIZE, TILE_SIZE, 2 * TILE_SIZE, 10, 10);
+            g2d.setColor(leftPortal.darker());
+            g2d.drawString("←草原", 2, 7 * TILE_SIZE - 4);
+            // 右邊界，第7-8行
+            g2d.setColor(rightPortal);
+            g2d.fillRoundRect(19 * TILE_SIZE, 7 * TILE_SIZE, TILE_SIZE, 2 * TILE_SIZE, 10, 10);
+            g2d.setColor(rightPortal.darker());
+            g2d.drawString("→魔王殿", 19 * TILE_SIZE - 6, 7 * TILE_SIZE - 4);
+        } else {
+            Color portalColor = new Color(220, 90, 70, 190);
+            // 左邊界，第7-8行
+            g2d.setColor(portalColor);
             g2d.fillRoundRect(0, 7 * TILE_SIZE, TILE_SIZE, 2 * TILE_SIZE, 10, 10);
             g2d.setColor(portalColor.darker());
-            g2d.setFont(new Font("Microsoft JhengHei", Font.BOLD, 11));
-            g2d.drawString("←草原", 2, 7 * TILE_SIZE - 4);
+            g2d.drawString("←地下城", 2, 7 * TILE_SIZE - 4);
         }
 
         for (Enemy e : enemies) {
             if (e.shouldRenderOnMap()) {
-                g2d.setColor(Color.RED);
-                g2d.fillOval((int) e.x + 8, (int) e.y + 8, 24, 24);
+                if (e.isBoss) {
+                    g2d.setColor(new Color(150, 40, 30));
+                    g2d.fillOval((int) e.x + 4, (int) e.y + 4, 32, 32);
+                    g2d.setColor(new Color(240, 200, 120));
+                    g2d.setStroke(new BasicStroke(2f));
+                    g2d.drawOval((int) e.x + 4, (int) e.y + 4, 32, 32);
+                } else {
+                    g2d.setColor(Color.RED);
+                    g2d.fillOval((int) e.x + 8, (int) e.y + 8, 24, 24);
+                }
             }
         }
         // 顯示隊友
@@ -1046,30 +1183,28 @@ class GamePanel extends JPanel implements ActionListener, KeyListener, MouseList
             g2d.setFont(new Font("Microsoft JhengHei", Font.BOLD, 10));
             g2d.drawString(c.name, (int) c.x - 5, (int) c.y - 5);
         }
-        //int playerSpriteSize = 70;
-        //int playerSpriteOffset = (TILE_SIZE - playerSpriteSize) / 2;
-        //if (battlePlayerSprite != null) {
-        //    g2d.drawImage(battlePlayerSprite, (int) player.x + playerSpriteOffset,
-        //            (int) player.y + playerSpriteOffset, playerSpriteSize, playerSpriteSize, null);
-        //} else {
-        //    g2d.setColor(Color.BLUE);
-        //    g2d.fillOval((int) player.x + 8, (int) player.y + 8, 24, 24);
-        //}
+        
         int playerSpriteSize = 40;
         BufferedImage currentPlayerSprite = getCurrentPlayerSprite();
-        int drawSize = getMapPlayerDrawSize(currentPlayerSprite, playerSpriteSize);
-        int playerSpriteOffset = (TILE_SIZE - drawSize) / 2;
+        int drawW = getMapPlayerDrawWidth(currentPlayerSprite, playerSpriteSize);
+        int drawH = getMapPlayerDrawHeight(currentPlayerSprite, playerSpriteSize);
+        int playerSpriteOffsetX = (TILE_SIZE - drawW) / 2;
+        int playerSpriteOffsetY = (TILE_SIZE - drawH) / 2;
 
         if (currentPlayerSprite != null) {
             g2d.drawImage(currentPlayerSprite,
-                    (int) player.x + playerSpriteOffset,
-                    (int) player.y + playerSpriteOffset,
-                    drawSize,
-                    drawSize,
+                    (int) player.x + playerSpriteOffsetX,
+                    (int) player.y + playerSpriteOffsetY,
+                    drawW,
+                    drawH,
                     null);
         } else {
             g2d.setColor(Color.BLUE);
             g2d.fillOval((int) player.x + 8, (int) player.y + 8, 24, 24);
+        }
+
+        if (bossCutsceneActive) {
+            drawBossCutsceneDialog(g2d);
         }
 
         // 地圖介面：單一選單按鈕
@@ -1290,79 +1425,29 @@ class GamePanel extends JPanel implements ActionListener, KeyListener, MouseList
                 g2d.setColor(new Color(140, 170, 220));
                 g2d.setStroke(new BasicStroke(1.5f));
                 g2d.drawRoundRect(portraitX, portraitY, portraitW, portraitH, 10, 10);
-                boolean showHeroPortrait = showingPlayer && heroPortrait != null;
-                boolean showMoonPortrait = !showingPlayer && "月".equals(actorName) && moonPortrait != null;
-                if (showHeroPortrait || showMoonPortrait) {
-                    BufferedImage portraitImage = showHeroPortrait ? heroPortrait : moonPortrait;
-                    double portraitScale = showHeroPortrait ? HERO_PORTRAIT_SCALE : MOON_PORTRAIT_SCALE;
-                    int nameAreaH = 28;
-                    int pad = 10;
-                    int maxW = portraitW - pad * 2;
-                    int maxH = portraitH - pad * 2 - nameAreaH;
-                    int imgW = portraitImage.getWidth();
-                    int imgH = portraitImage.getHeight();
-                    double scale = Math.min(maxW / (double) imgW, maxH / (double) imgH) * portraitScale;
-                    int drawW = (int) Math.round(imgW * scale);
-                    int drawH = (int) Math.round(imgH * scale);
-                    int imgX = portraitX + (portraitW - drawW) / 2;
-                    int imgY = portraitY + pad + (maxH - drawH) / 2;
-                    g2d.drawImage(portraitImage, imgX, imgY, drawW, drawH, null);
+                int portraitPadding = 10;
+                int nameAreaHeight = 24;
+                int imageX = portraitX + portraitPadding;
+                int imageY = portraitY + portraitPadding;
+                int imageW = portraitW - portraitPadding * 2;
+                int imageH = portraitH - portraitPadding * 2 - nameAreaHeight;
 
-                    g2d.setColor(Color.WHITE);
-                    g2d.setFont(new Font("Microsoft JhengHei", Font.BOLD, 16));
-                    FontMetrics nameFm = g2d.getFontMetrics();
-                    int nameX = portraitX + (portraitW - nameFm.stringWidth(actorName)) / 2;
-                    int nameY = portraitY + portraitH - 8;
-                    g2d.drawString(actorName, nameX, nameY);
-                } else {
-                    g2d.setColor(new Color(210, 220, 245));
-                    g2d.setFont(new Font("Microsoft JhengHei", Font.BOLD, 15));
-                    g2d.drawString("角色立繪區", portraitX + 62, portraitY + 34);
-                    g2d.setColor(new Color(175, 190, 220));
-                    g2d.setFont(new Font("Microsoft JhengHei", Font.PLAIN, 12));
-                    g2d.drawString("(可放角色圖/大頭照)", portraitX + 50, portraitY + 58);
-                    g2d.setColor(portraitAccent.darker());
-                    g2d.fillOval(portraitX + 58, portraitY + 84, 104, 104);
-                    g2d.setColor(portraitAccent.brighter());
-                    g2d.drawOval(portraitX + 58, portraitY + 84, 104, 104);
-
-                    int iconCX = portraitX + 110;
-                    int iconCY = portraitY + 136;
-                    g2d.setStroke(new BasicStroke(3f));
-                    g2d.setColor(new Color(240, 245, 255));
-                    if (showingPlayer) {
-                        // 玩家圖示：十字劍
-                        g2d.drawLine(iconCX - 14, iconCY + 12, iconCX + 14, iconCY - 12);
-                        g2d.drawLine(iconCX - 10, iconCY - 16, iconCX + 10, iconCY + 16);
-                    } else {
-                        int iconType = Math.abs(selectedStatusActor) % 3;
-                        if (iconType == 0) {
-                            // 隊友圖示A：新月
-                            g2d.drawArc(iconCX - 14, iconCY - 14, 28, 28, 60, 240);
-                            g2d.setColor(portraitAccent.brighter());
-                            g2d.drawArc(iconCX - 8, iconCY - 14, 24, 28, 60, 240);
-                        } else if (iconType == 1) {
-                            // 隊友圖示B：菱形徽章
-                            Polygon p1 = new Polygon();
-                            p1.addPoint(iconCX, iconCY - 16);
-                            p1.addPoint(iconCX + 14, iconCY);
-                            p1.addPoint(iconCX, iconCY + 16);
-                            p1.addPoint(iconCX - 14, iconCY);
-                            g2d.drawPolygon(p1);
-                        } else {
-                            // 隊友圖示C：三角法陣
-                            Polygon p2 = new Polygon();
-                            p2.addPoint(iconCX, iconCY - 16);
-                            p2.addPoint(iconCX + 14, iconCY + 12);
-                            p2.addPoint(iconCX - 14, iconCY + 12);
-                            g2d.drawPolygon(p2);
-                            g2d.drawLine(iconCX, iconCY - 16, iconCX, iconCY + 12);
-                        }
-                    }
-
-                    g2d.setFont(new Font("Microsoft JhengHei", Font.BOLD, 16));
-                    g2d.drawString(actorName, portraitX + 84, portraitY + 224);
+                if (statusPortraitImage != null) {
+                    double scale = Math.min(imageW / (double) statusPortraitImage.getWidth(),
+                            imageH / (double) statusPortraitImage.getHeight());
+                    int portraitDrawW = (int) Math.round(statusPortraitImage.getWidth() * scale);
+                    int portraitDrawH = (int) Math.round(statusPortraitImage.getHeight() * scale);
+                    int drawX = imageX + (imageW - portraitDrawW) / 2;
+                    int drawY = imageY + (imageH - portraitDrawH) / 2;
+                    g2d.drawImage(statusPortraitImage, drawX, drawY, portraitDrawW, portraitDrawH, null);
                 }
+
+                g2d.setColor(new Color(220, 230, 255));
+                g2d.setFont(new Font("Microsoft JhengHei", Font.BOLD, 16));
+                FontMetrics nameFm = g2d.getFontMetrics();
+                int nameX = portraitX + (portraitW - nameFm.stringWidth(actorName)) / 2;
+                int nameY = portraitY + portraitH - portraitPadding;
+                g2d.drawString(actorName, nameX, nameY);
 
                 int cardX = portraitX + portraitW + 16;
                 int cardW = contentX + contentW - cardX - 14;
@@ -1482,6 +1567,11 @@ class GamePanel extends JPanel implements ActionListener, KeyListener, MouseList
     public void actionPerformed(ActionEvent e) {
         // 開始菜單或加載菜單狀態下，只進行渲染，不進行遊戲邏輯更新
         if (state == -1 || showLoadMenu) {
+            repaint();
+            return;
+        }
+
+        if (bossCutsceneActive) {
             repaint();
             return;
         }
@@ -1664,6 +1754,7 @@ class GamePanel extends JPanel implements ActionListener, KeyListener, MouseList
                                 // 如果所有敵人都被擊敗
                                 if (currentEnemies.isEmpty()) {
                                     // 標記所有原始敵人為已擊敗，防止返回地圖時立即重新觸發戰鬥
+                                    markBossDefeatedIfNeeded();
                                     for (Enemy origEnemy : originalBattleEnemies) {
                                         origEnemy.defeated = true;
                                     }
@@ -1735,6 +1826,7 @@ class GamePanel extends JPanel implements ActionListener, KeyListener, MouseList
                                     
                                     if (currentEnemies.isEmpty()) {
                                         // 標記所有原始敵人為已擊敗，防止返回地圖時立即重新觸發戰鬥
+                                        markBossDefeatedIfNeeded();
                                         for (Enemy origEnemy : originalBattleEnemies) {
                                             origEnemy.defeated = true;
                                         }
@@ -1981,6 +2073,15 @@ class GamePanel extends JPanel implements ActionListener, KeyListener, MouseList
             }
             return;
         }
+
+        if (bossCutsceneActive) {
+            int key = e.getKeyCode();
+            if (key == KeyEvent.VK_ENTER || key == KeyEvent.VK_SPACE) {
+                advanceBossCutscene();
+                repaint();
+            }
+            return;
+        }
         
         // 開始菜單導航
         if (state == -1) {
@@ -2137,6 +2238,9 @@ class GamePanel extends JPanel implements ActionListener, KeyListener, MouseList
             } else if (key == KeyEvent.VK_H) { // 使用藥水
                 showPotionMenuForTargeting();
             } else if (key == KeyEvent.VK_R) { // 逃跑（玩家或隊友）
+                if (isBossBattleActive()) {
+                    return;
+                }
                 if (currentActor instanceof Player || currentActor instanceof Companion) {
                     if (Math.random() < 0.6) {
                         fleeMessage = "逃跑成功！敵人短暫失去戰意。";
@@ -2157,6 +2261,9 @@ class GamePanel extends JPanel implements ActionListener, KeyListener, MouseList
 
     @Override
     public void keyReleased(KeyEvent e) {
+        if (bossCutsceneActive) {
+            return;
+        }
         if (state == 0) {
             player.vx = 0;
             player.vy = 0;
@@ -2172,6 +2279,15 @@ class GamePanel extends JPanel implements ActionListener, KeyListener, MouseList
     @Override
     public void mousePressed(MouseEvent e) {
         Point p = e.getPoint();
+
+        if (bossCutsceneActive) {
+            int button = e.getButton();
+            if (button == MouseEvent.BUTTON1 || button == MouseEvent.BUTTON3) {
+                advanceBossCutscene();
+                repaint();
+            }
+            return;
+        }
         
         // 加載菜單點擊處理（優先處理）
         if (showLoadMenu) {
@@ -2421,6 +2537,9 @@ class GamePanel extends JPanel implements ActionListener, KeyListener, MouseList
                 showPotionMenuForTargeting();
                 return;
             } else if (runRect != null && runRect.contains(p)) {
+                if (isBossBattleActive()) {
+                    return;
+                }
                 if (currentActor instanceof Player || currentActor instanceof Companion) {
                     if (Math.random() < 0.6) {
                         fleeMessage = "逃跑成功！敵人短暫失去戰意。";
@@ -2553,6 +2672,10 @@ class GamePanel extends JPanel implements ActionListener, KeyListener, MouseList
             switchMap(1, 1 * TILE_SIZE, 7 * TILE_SIZE + 10);
         } else if (mapIndex == 1 && inPortalRows && cx <= TILE_SIZE) {
             switchMap(0, 18 * TILE_SIZE, 7 * TILE_SIZE + 10);
+        } else if (mapIndex == 1 && inPortalRows && cx >= 19 * TILE_SIZE) {
+            switchMap(2, 1 * TILE_SIZE, 7 * TILE_SIZE + 10);
+        } else if (mapIndex == 2 && inPortalRows && cx <= TILE_SIZE) {
+            switchMap(1, 18 * TILE_SIZE, 7 * TILE_SIZE + 10);
         }
     }
 
@@ -2578,7 +2701,110 @@ class GamePanel extends JPanel implements ActionListener, KeyListener, MouseList
         }
         // 清空玩家路徑歷史（新地圖需要重新記錄）
         playerPathHistory.clear();
+
+        if (mapIndex == BOSS_MAP_INDEX && !bossCutscenePlayed) {
+            Enemy boss = findBossEnemyOnMap();
+            if (boss != null && !boss.isDefeated()) {
+                startBossCutscene();
+            }
+        }
         updateMapMusic();
+    }
+
+    private Enemy findBossEnemyOnMap() {
+        for (Enemy e : enemies) {
+            if (e.isBoss) {
+                return e;
+            }
+        }
+        return null;
+    }
+
+    boolean isBossBattleActive() {
+        if (triggeredEnemy != null && triggeredEnemy.isBoss) {
+            return true;
+        }
+        for (Enemy enemy : currentEnemies) {
+            if (enemy.isBoss) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    void markBossDefeatedIfNeeded() {
+        for (Enemy origEnemy : originalBattleEnemies) {
+            if (origEnemy.isBoss) {
+                bossDefeated = true;
+                bossCutscenePlayed = true;
+                break;
+            }
+        }
+    }
+
+    private void startBossCutscene() {
+        bossCutsceneActive = true;
+        bossCutsceneIndex = 0;
+        bossCutscenePositioned = false;
+        showMapMenu = false;
+        hoveredMapTab = -1;
+        mouseDown = false;
+        keyDown = false;
+        player.vx = 0;
+        player.vy = 0;
+        applyBossCutscenePositionsIfNeeded();
+    }
+
+    private void applyBossCutscenePositionsIfNeeded() {
+        if (bossCutscenePositioned) {
+            return;
+        }
+
+        int heroX = (int) player.x;
+        int heroY = (int) player.y;
+        int moonY = heroY + 80;
+
+        if (!companions.isEmpty()) {
+            Companion moon = companions.get(0);
+            moon.x = heroX;
+            moon.y = moonY;
+            moon.vx = 0;
+            moon.vy = 0;
+        }
+
+        bossCutscenePositioned = true;
+    }
+
+    private void advanceBossCutscene() {
+        if (!bossCutsceneActive) {
+            return;
+        }
+        bossCutsceneIndex++;
+        if (bossCutsceneIndex >= bossCutsceneLines.length) {
+            bossCutsceneActive = false;
+            bossCutscenePlayed = true;
+            bossCutsceneIndex = 0;
+            startBossBattleFromCutscene();
+        }
+    }
+
+    private void startBossBattleFromCutscene() {
+        Enemy boss = findBossEnemyOnMap();
+        if (boss == null || boss.isDefeated()) {
+            return;
+        }
+        state = 1;
+        triggeredEnemy = boss;
+        spawnRandomEnemies();
+        playBattleMusic();
+        previewDrops = generateDropsPreview();
+        waitingForPlayerDecision = false;
+        animating = false;
+        animTicks = 0;
+        selectingTargetMode = "";
+        selectingPotionType = "";
+        selectedSkill = null;
+        hoveredEnemyIndex = -1;
     }
 
     // 隨機生成1-3個敵人進入戰鬥
@@ -2589,7 +2815,7 @@ class GamePanel extends JPanel implements ActionListener, KeyListener, MouseList
         
         // 觸發敵人必定會參與戰鬥
         if (triggeredEnemy != null && !triggeredEnemy.isDefeated() && !triggeredEnemy.isBattleLocked()) {
-            Enemy newEnemy = new Enemy((int)triggeredEnemy.x / 40, (int)triggeredEnemy.y / 40);
+            Enemy newEnemy = new Enemy(triggeredEnemy);
             triggeredEnemy.setBattleLock(Long.MAX_VALUE);  // 立即鎖定原始敵人，防止重複戰鬥
             originalBattleEnemies.add(triggeredEnemy);  // 追蹤觸發敵人，以便戰鬥結束時標記
             currentEnemies.add(newEnemy);
@@ -2597,12 +2823,14 @@ class GamePanel extends JPanel implements ActionListener, KeyListener, MouseList
         }
         
         // 隨機生成0-2個額外敵人（虛擬敵人，不與地圖敵人關聯）
-        int additionalEnemyCount = (int)(Math.random() * 3);  // 0-2 個額外敵人
-        for (int i = 0; i < additionalEnemyCount; i++) {
-            // 隨機生成虛擬敵人，不涉及地圖敵人
-            Enemy virtualEnemy = new Enemy((int)(Math.random() * 15), (int)(Math.random() * 10));
-            currentEnemies.add(virtualEnemy);
-            enemyBattleSlots.add(enemyBattleSlots.size());
+        if (triggeredEnemy == null || !triggeredEnemy.isBoss) {
+            int additionalEnemyCount = (int)(Math.random() * 3);  // 0-2 個額外敵人
+            for (int i = 0; i < additionalEnemyCount; i++) {
+                // 隨機生成虛擬敵人，不涉及地圖敵人
+                Enemy virtualEnemy = new Enemy((int)(Math.random() * 15), (int)(Math.random() * 10));
+                currentEnemies.add(virtualEnemy);
+                enemyBattleSlots.add(enemyBattleSlots.size());
+            }
         }
 
         // 每次新戰鬥都重建初始行動順序
@@ -2760,6 +2988,7 @@ class GamePanel extends JPanel implements ActionListener, KeyListener, MouseList
             return false;
         }
 
+        markBossDefeatedIfNeeded();
         for (Enemy origEnemy : originalBattleEnemies) {
             origEnemy.defeated = true;
         }
@@ -2909,6 +3138,99 @@ class GamePanel extends JPanel implements ActionListener, KeyListener, MouseList
         g2d.setStroke(oldStroke);
     }
 
+    private void drawBossCutsceneDialog(Graphics2D g2d) {
+        if (bossCutsceneIndex < 0 || bossCutsceneIndex >= bossCutsceneLines.length) {
+            return;
+        }
+
+        String line = bossCutsceneLines[bossCutsceneIndex];
+        boolean speakerIsBoss = line.startsWith("魔王");
+        int targetX;
+        int targetY;
+
+        if (speakerIsBoss) {
+            Enemy boss = findBossEnemyOnMap();
+            if (boss != null) {
+                targetX = (int) boss.x + TILE_SIZE / 2;
+                targetY = (int) boss.y - 12;
+            } else {
+                targetX = (int) player.x + TILE_SIZE / 2;
+                targetY = (int) player.y - 12;
+            }
+        } else {
+            targetX = (int) player.x + TILE_SIZE / 2;
+            targetY = (int) player.y - 12;
+        }
+
+        drawDialogueBubble(g2d, targetX, targetY, line);
+    }
+
+    private void drawDialogueBubble(Graphics2D g2d, int centerX, int topY, String text) {
+        Font chFont = new Font("Microsoft JhengHei", Font.BOLD, 14);
+        if (!chFont.canDisplay('漢')) {
+            chFont = new Font(Font.DIALOG, Font.BOLD, 14);
+        }
+        g2d.setFont(chFont);
+        FontMetrics fm = g2d.getFontMetrics();
+        int maxTextWidth = 320;
+        java.util.List<String> lines = wrapText(text, fm, maxTextWidth);
+
+        int lineHeight = fm.getHeight();
+        int textWidth = 0;
+        for (String line : lines) {
+            textWidth = Math.max(textWidth, fm.stringWidth(line));
+        }
+
+        int padding = 8;
+        int bubbleW = textWidth + padding * 2;
+        int bubbleH = lineHeight * lines.size() + padding * 2;
+        int bubbleX = centerX - bubbleW / 2;
+        int bubbleY = topY - bubbleH;
+
+        if (bubbleX < 8) {
+            bubbleX = 8;
+        }
+        if (bubbleX + bubbleW > getWidth() - 8) {
+            bubbleX = getWidth() - bubbleW - 8;
+        }
+        if (bubbleY < 8) {
+            bubbleY = 8;
+        }
+
+        g2d.setColor(new Color(0, 0, 0, 180));
+        g2d.fillRoundRect(bubbleX, bubbleY, bubbleW, bubbleH, 10, 10);
+        g2d.setColor(new Color(230, 230, 255));
+        g2d.setStroke(new BasicStroke(2));
+        g2d.drawRoundRect(bubbleX, bubbleY, bubbleW, bubbleH, 10, 10);
+
+        g2d.setColor(Color.WHITE);
+        int textY = bubbleY + padding + fm.getAscent();
+        for (String line : lines) {
+            g2d.drawString(line, bubbleX + padding, textY);
+            textY += lineHeight;
+        }
+    }
+
+    private java.util.List<String> wrapText(String text, FontMetrics fm, int maxWidth) {
+        java.util.List<String> lines = new java.util.ArrayList<>();
+        StringBuilder current = new StringBuilder();
+
+        for (int i = 0; i < text.length(); i++) {
+            char c = text.charAt(i);
+            String next = current.toString() + c;
+            if (fm.stringWidth(next) > maxWidth && current.length() > 0) {
+                lines.add(current.toString());
+                current.setLength(0);
+            }
+            current.append(c);
+        }
+
+        if (current.length() > 0) {
+            lines.add(current.toString());
+        }
+        return lines;
+    }
+
     private void handlePartyDefeatReturnToMainMenu() {
         JOptionPane.showMessageDialog(this, "全隊被打敗了，返回主畫面。", "戰鬥失敗", JOptionPane.INFORMATION_MESSAGE);
 
@@ -2946,21 +3268,23 @@ class GamePanel extends JPanel implements ActionListener, KeyListener, MouseList
         state = -1;
     }
 
-    private void updateMapMusic() {
+    void updateMapMusic() {
         if (mapIndex == 0) {
             playLoopingMapMusic("ED6101.wav");
         } else if (mapIndex == 1) {
+            playLoopingMapMusic("ED6106.wav");
+        } else if (mapIndex == 2) {
             playLoopingMapMusic("ED6106.wav");
         } else {
             stopCurrentMusic();
         }
     }
 
-    private void playBattleMusic() {
+    void playBattleMusic() {
         playLoopingMapMusic("ED6400.wav");
     }
     
-    private void playBattleEndMusic() {
+    void playBattleEndMusic() {
         playOneshotMusic("battle end.wav");
     }
     
@@ -3014,7 +3338,7 @@ class GamePanel extends JPanel implements ActionListener, KeyListener, MouseList
             System.err.println("無法播放音樂檔案: " + e.getMessage());
         }
     }
-    private void stopCurrentMusic() {
+    void stopCurrentMusic() {
         if (bgmClip != null) {
             if (bgmClip.isRunning()) {
                 bgmClip.stop();
@@ -3208,6 +3532,11 @@ class GamePanel extends JPanel implements ActionListener, KeyListener, MouseList
         showMapMenu = false;
         selectedMapTab = 0;
         selectedStatusActor = -1;
+        bossCutsceneActive = false;
+        bossCutscenePlayed = false;
+        bossDefeated = false;
+        bossCutsceneIndex = 0;
+        bossCutscenePositioned = false;
         
         // 恢復音樂
         updateMapMusic();
@@ -3264,6 +3593,8 @@ class GamePanel extends JPanel implements ActionListener, KeyListener, MouseList
             
             // 保存地圖信息
             state.currentMapIndex = mapIndex;
+            state.bossCutscenePlayed = bossCutscenePlayed;
+            state.bossDefeated = bossDefeated;
             
             // 保存已擊敗的敵人（使用敵人的位置作為ID）
             int enemyId = 0;
@@ -3354,6 +3685,14 @@ class GamePanel extends JPanel implements ActionListener, KeyListener, MouseList
             }
             
             // 恢復地圖
+            bossCutscenePlayed = gameStateData.bossCutscenePlayed;
+            bossDefeated = gameStateData.bossDefeated;
+            if (bossDefeated) {
+                bossCutscenePlayed = true;
+            }
+            bossCutsceneActive = false;
+            bossCutsceneIndex = 0;
+            bossCutscenePositioned = false;
             switchMap(gameStateData.currentMapIndex, gameStateData.playerX, gameStateData.playerY);
             
             // 恢復敵人擊敗狀態
