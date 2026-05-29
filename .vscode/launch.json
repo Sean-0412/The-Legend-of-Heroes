@@ -5,6 +5,13 @@
             "type": "java",
             "name": "RPGGame",
             "request": "launch",
+            "mainClass": "src.RPGGame",
+            "projectName": "javatest_b1ee1128"
+        },
+        {
+            "type": "java",
+            "name": "RPGGame",
+            "request": "launch",
             "mainClass": "RPGGame",
             "projectName": "javatest_b1ee1128"
         },
