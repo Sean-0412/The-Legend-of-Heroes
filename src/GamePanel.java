@@ -476,6 +476,10 @@ class GamePanel extends JPanel implements ActionListener, KeyListener, MouseList
             g2d.setColor(new Color(0, 0, 0, 200));
             g2d.fillRect(0, 0, getWidth(), getHeight());
 
+            g2d.setColor(Color.YELLOW);
+            g2d.setFont(new Font("Microsoft JhengHei", Font.BOLD, 16));
+            g2d.drawString("金幣: " + player.gold + " G", 20, 30);
+
             // 動畫偏移計算
             int offsetX = 0;
             int offsetY = 0;
@@ -1072,6 +1076,10 @@ class GamePanel extends JPanel implements ActionListener, KeyListener, MouseList
             g2d.fillOval((int) player.x + 8, (int) player.y + 8, 24, 24);
         }
 
+        g2d.setColor(Color.YELLOW);
+        g2d.setFont(new Font("Microsoft JhengHei", Font.BOLD, 16));
+        g2d.drawString("金幣: " + player.gold + " G", 20, 30);
+
         // 地圖介面：單一選單按鈕
         int mw = 90, mh = 32;
         menuRect = new Rectangle(10, getHeight() - mh - 10, mw, mh);
@@ -1415,6 +1423,7 @@ class GamePanel extends JPanel implements ActionListener, KeyListener, MouseList
                 java.util.List<String> bagItems = new java.util.ArrayList<>();
                 bagItems.add("小藥 x" + player.smallPotions);
                 bagItems.add("大藥 x" + player.largePotions);
+                bagItems.add("CP藥水 x" + player.cpPotions);
                 bagItems.add("金幣 x" + player.gold);
 
                 int visibleStart = bagScrollOffset;
@@ -2097,6 +2106,13 @@ class GamePanel extends JPanel implements ActionListener, KeyListener, MouseList
                     mouseDown = false;
                     keyDown = true;
                     break;
+                case KeyEvent.VK_P:
+                    player.vx = 0;
+                    player.vy = 0;
+                    mouseDown = false;
+                    keyDown = false;
+                    showShopMenu();
+                    break;
             }
         } else if (state == 1 && currentEnemies.size() > 0) {
             // 如果顯示逃跑訊息，按任意鍵關閉
@@ -2676,6 +2692,63 @@ class GamePanel extends JPanel implements ActionListener, KeyListener, MouseList
                     player.gold += 50;
                 }
             }
+        }
+    }
+
+    private void showShopMenu() {
+        String[] options = {
+                "劣質小刀 (50金幣)",
+                "劣質法杖 (50金幣)",
+                "劣質護甲 (40金幣)",
+                "劣質斗篷 (40金幣)",
+                "小藥水 (15金幣)",
+                "大藥水 (30金幣)",
+                "CP藥水 (25金幣)",
+                "離開"
+        };
+
+        int choice = JOptionPane.showOptionDialog(
+                this,
+                "目前金幣: " + player.gold + " G\n請選擇要購買的商品:",
+                "商店",
+                JOptionPane.DEFAULT_OPTION,
+                JOptionPane.PLAIN_MESSAGE,
+                null,
+                options,
+                options[0]);
+
+        boolean success = false;
+        switch (choice) {
+            case 0:
+                success = player.buyEquipment("劣質小刀", 50, "patk", 5);
+                break;
+            case 1:
+                success = player.buyEquipment("劣質法杖", 50, "matk", 5);
+                break;
+            case 2:
+                success = player.buyEquipment("劣質護甲", 40, "pdef", 5);
+                break;
+            case 3:
+                success = player.buyEquipment("劣質斗篷", 40, "mdef", 5);
+                break;
+            case 4:
+                success = player.buyPotion("small", 15);
+                break;
+            case 5:
+                success = player.buyPotion("large", 30);
+                break;
+            case 6:
+                success = player.buyPotion("cp", 25);
+                break;
+            default:
+                return;
+        }
+
+        if (success) {
+            JOptionPane.showMessageDialog(this, "購買成功！");
+            repaint();
+        } else {
+            JOptionPane.showMessageDialog(this, "金幣不足！");
         }
     }
 
@@ -3852,7 +3925,6 @@ class GamePanel extends JPanel implements ActionListener, KeyListener, MouseList
             return;
         }
         
-        Object currentCharacter = currentActor;
         int healAmount = 0;
         
         if ("small".equals(selectingPotionType)) {
@@ -3861,21 +3933,30 @@ class GamePanel extends JPanel implements ActionListener, KeyListener, MouseList
             healAmount = 80;
         }
         
-        // 給目標角色治療
-        if (target instanceof Player) {
-            ((Player) target).heal(healAmount);
-        } else if (target instanceof Companion) {
-            ((Companion) target).heal(healAmount);
+        if ("cp".equals(selectingPotionType)) {
+            if (target instanceof Player) {
+                Player p = (Player) target;
+                p.cp = Math.min(p.cp + 50, p.maxCp);
+            } else if (target instanceof Companion) {
+                Companion c = (Companion) target;
+                c.cp = Math.min(c.cp + 50, c.maxCp);
+            }
+        } else {
+            // 給目標角色治療
+            if (target instanceof Player) {
+                ((Player) target).heal(healAmount);
+            } else if (target instanceof Companion) {
+                ((Companion) target).heal(healAmount);
+            }
         }
         
         // 消耗藥水
-        if (currentCharacter instanceof Player) {
-            Player p = (Player) currentCharacter;
-            if ("small".equals(selectingPotionType)) {
-                p.smallPotions = Math.max(0, p.smallPotions - 1);
-            } else if ("large".equals(selectingPotionType)) {
-                p.largePotions = Math.max(0, p.largePotions - 1);
-            }
+        if ("small".equals(selectingPotionType)) {
+            player.smallPotions = Math.max(0, player.smallPotions - 1);
+        } else if ("large".equals(selectingPotionType)) {
+            player.largePotions = Math.max(0, player.largePotions - 1);
+        } else if ("cp".equals(selectingPotionType)) {
+            player.cpPotions = Math.max(0, player.cpPotions - 1);
         }
         
         // 用藥完成後依 AT 重新排序
@@ -3954,30 +4035,16 @@ class GamePanel extends JPanel implements ActionListener, KeyListener, MouseList
 
     // 顯示藥物菜單並進入目標選擇模式
     private void showPotionMenuForTargeting() {
-        Object currentCharacter = currentActor;
-        if (currentCharacter == null) {
-            currentCharacter = player;
-        }
+        int smallPotions = player.smallPotions;
+        int largePotions = player.largePotions;
+        int cpPotions = player.cpPotions;
 
-        int smallPotions = 0;
-        int largePotions = 0;
-        
-        if (currentCharacter instanceof Player) {
-            Player p = (Player) currentCharacter;
-            smallPotions = p.smallPotions;
-            largePotions = p.largePotions;
-        } else if (currentCharacter instanceof Companion) {
-            // 隊友使用玩家的藥水
-            smallPotions = player.smallPotions;
-            largePotions = player.largePotions;
-        }
-
-        if (smallPotions + largePotions <= 0) {
+        if (smallPotions + largePotions + cpPotions <= 0) {
             JOptionPane.showMessageDialog(this, "沒有可用的藥水！");
             return;
         }
 
-        Object[] options = { "小藥 (+40)", "大藥 (+80)", "取消" };
+        Object[] options = { "小藥 (+40)", "大藥 (+80)", "CP藥水 (+50 CP)", "取消" };
         int choice = JOptionPane.showOptionDialog(this,
                 "選擇藥水種類", "藥水",
                 JOptionPane.DEFAULT_OPTION, JOptionPane.PLAIN_MESSAGE,
@@ -3989,6 +4056,10 @@ class GamePanel extends JPanel implements ActionListener, KeyListener, MouseList
             repaint();
         } else if (choice == 1 && largePotions > 0) {
             selectingPotionType = "large";
+            selectingTargetMode = "potion";  // 進入藥水目標選擇模式
+            repaint();
+        } else if (choice == 2 && cpPotions > 0) {
+            selectingPotionType = "cp";
             selectingTargetMode = "potion";  // 進入藥水目標選擇模式
             repaint();
         }
