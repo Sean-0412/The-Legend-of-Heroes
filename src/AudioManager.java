@@ -1,3 +1,8 @@
+/**
+ * AudioManager.java
+ * 說明: 管理背景音樂與音效的載入、播放與切換功能。
+ */
+
 package src;
 
 import javax.sound.sampled.AudioInputStream;

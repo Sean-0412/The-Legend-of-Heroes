@@ -1,3 +1,8 @@
+/**
+ * BattleRenderer.java
+ * 說明: 負責繪製戰鬥畫面（角色、敵人、技能動畫、介面按鈕與提示）。
+ */
+
 package src;
 
 import java.awt.AlphaComposite;

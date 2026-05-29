@@ -1,3 +1,8 @@
+/**
+ * GameRenderer.java
+ * 說明: 根據當前遊戲狀態選擇要渲染的畫面（地圖、戰鬥、結算或選單），並委派給對應的 renderer
+ */
+
 package src;
 
 import java.awt.Graphics2D;

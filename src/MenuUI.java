@@ -1,3 +1,8 @@
+/**
+ * MenuUI.java
+ * 說明: 負責繪製主選單、載入/保存介面，以及地圖選單（狀態/背包/保存）的 UI 元件。
+ */
+
 package src;
 
 import java.awt.BasicStroke;

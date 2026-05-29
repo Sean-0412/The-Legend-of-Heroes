@@ -1,3 +1,8 @@
+/**
+ * Shop.java
+ * 說明: 商店功能的輔助類別，提供顯示商店列表與處理購買邏輯的靜態方法。
+ */
+
 package src;
 
 import javax.swing.*;

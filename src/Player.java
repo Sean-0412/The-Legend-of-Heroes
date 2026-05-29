@@ -1,3 +1,8 @@
+/**
+ * Player.java
+ * 說明: 玩家角色資料與行為（屬性、等級、金幣、購買方法、治療等）。
+ */
+
 package src;
 
 import java.util.ArrayList;

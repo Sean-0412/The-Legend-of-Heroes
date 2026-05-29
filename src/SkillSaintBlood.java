@@ -1,3 +1,8 @@
+/**
+ * SkillSaintBlood.java
+ * 說明: 實作「聖血」類型的戰技，繼承並實作 Skill 的特殊效果與數值。
+ */
+
 package src;
 
 public class SkillSaintBlood extends Skill {

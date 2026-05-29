@@ -1,3 +1,8 @@
+/**
+ * Skill.java
+ * 說明: 戰技基底類別，定義共用屬性與介面方法，各技能類別繼承並實作細節。
+ */
+
 package src;
 
 public abstract class Skill {

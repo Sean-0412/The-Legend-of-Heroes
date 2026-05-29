@@ -1,3 +1,8 @@
+/**
+ * GamePanel.java
+ * 說明: 遊戲主面板，處理遊戲循環、輸入事件、繪圖與遊戲邏輯（移動、戰鬥觸發、UI 等）。
+ */
+
 package src;
 
 import javax.swing.*;

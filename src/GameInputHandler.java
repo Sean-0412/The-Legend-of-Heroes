@@ -1,3 +1,8 @@
+/**
+ * GameInputHandler.java
+ * 說明: 封裝鍵盤與滑鼠輸入的回調處理（在某些實作中會被 GamePanel 使用或替代）。
+ */
+
 package src;
 
 import java.awt.Point;
@@ -154,10 +159,6 @@ class GameInputHandler {
                     game.player.vy = game.player.speed;
                     game.mouseDown = false;
                     game.keyDown = true;
-                    break;
-                case KeyEvent.VK_B:
-                    // 按 B 開商店
-                    Shop.showShop(game);
                     break;
                 default:
                     break;

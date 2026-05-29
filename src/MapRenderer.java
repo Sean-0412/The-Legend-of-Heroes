@@ -1,3 +1,8 @@
+/**
+ * MapRenderer.java
+ * 說明: 負責將地圖格子、傳送門、敵人與玩家等元素繪製到畫面上。
+ */
+
 package src;
 
 import java.awt.BasicStroke;

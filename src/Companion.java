@@ -1,3 +1,8 @@
+/**
+ * Companion.java
+ * 說明: 隊友類別，包含跟隨玩家、戰鬥屬性與技能等行為。
+ */
+
 package src;
 
 import java.util.ArrayList;

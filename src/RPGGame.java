@@ -1,3 +1,8 @@
+/**
+ * RPGGame.java
+ * 說明: 程式進入點，建立視窗與遊戲主面板並啟動遊戲循環。
+ */
+
 package src;
 
 import javax.swing.*;

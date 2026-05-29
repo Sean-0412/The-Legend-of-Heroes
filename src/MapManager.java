@@ -1,3 +1,8 @@
+/**
+ * MapManager.java
+ * 說明: 管理地圖資料、敵人生成、碰撞檢查與場景切換（傳送門處理）。
+ */
+
 package src;
 
 import java.util.ArrayList;

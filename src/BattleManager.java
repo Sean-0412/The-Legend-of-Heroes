@@ -1,3 +1,8 @@
+/**
+ * BattleManager.java
+ * 說明: 管理戰鬥邏輯（生成敵人隊列、執行動作、處理戰鬥事件與順序）。
+ */
+
 package src;
 
 import javax.swing.JList;

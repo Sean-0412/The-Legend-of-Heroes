@@ -1,3 +1,8 @@
+/**
+ * GameState.java
+ * 說明: 定義或管理遊戲狀態相關結構（若包含常數或狀態邏輯在此維護）。
+ */
+
 package src;
 
 import java.io.Serializable;
