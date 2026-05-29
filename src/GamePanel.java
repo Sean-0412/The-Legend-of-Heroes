@@ -27,8 +27,8 @@ class GamePanel extends JPanel implements ActionListener, KeyListener, MouseList
     final double MAP_LEFT_WIDTH_SCALE = 1.5;
     final double MAP_RIGHT_HEIGHT_SCALE = 1.7; // 调整正右/右走圖片高度用
     final double MAP_LEFT_HEIGHT_SCALE = 1.2375;
-    final int SHOP_NPC_MAP_INDEX = 0;
-    final int SHOP_NPC_TILE_X = 8;
+    final int SHOP_NPC_MAP_INDEX = VILLAGE_MAP_INDEX;
+    final int SHOP_NPC_TILE_X = 9;
     final int SHOP_NPC_TILE_Y = 6;
     final double SHOP_NPC_INTERACT_RANGE = 70.0;
     final int INN_NPC_MAP_INDEX = VILLAGE_MAP_INDEX;
@@ -426,7 +426,8 @@ class GamePanel extends JPanel implements ActionListener, KeyListener, MouseList
         }
         allMaps[2][10][4] = 1;
         allMaps[2][10][15] = 1;
-        // 村莊 NPC 位置：旅館與訓練師，保持站位格可通行並由繪圖/互動方法使用。
+        // 村莊 NPC 位置：商人、旅館與訓練師，保持站位格可通行並由繪圖/互動方法使用。
+        allMaps[SHOP_NPC_MAP_INDEX][SHOP_NPC_TILE_Y][SHOP_NPC_TILE_X] = 0;
         allMaps[INN_NPC_MAP_INDEX][INN_NPC_TILE_Y][INN_NPC_TILE_X] = 0;
         allMaps[TRAINER_NPC_MAP_INDEX][TRAINER_NPC_TILE_Y][TRAINER_NPC_TILE_X] = 0;
 
