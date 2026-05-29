@@ -1,0 +1,26 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "java",
+            "name": "RPGGame",
+            "request": "launch",
+            "mainClass": "src.RPGGame",
+            "projectName": "javatest_b1ee1128"
+        },
+        {
+            "type": "java",
+            "name": "RPGGame",
+            "request": "launch",
+            "mainClass": "RPGGame",
+            "projectName": "javatest_b1ee1128"
+        },
+        {
+            "type": "java",
+            "name": "Launch RPGGame",
+            "request": "launch",
+            "mainClass": "src.RPGGame",
+            "projectName": "javatest"
+        }
+    ]
+}

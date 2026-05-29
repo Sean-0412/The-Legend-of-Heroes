@@ -1,3 +1,8 @@
+/**
+ * Player.java
+ * 說明: 玩家角色資料與行為（屬性、等級、金幣、購買方法、治療等）。
+ */
+
 package src;
 
 import java.util.ArrayList;
@@ -35,10 +40,21 @@ public class Player {
     public int gold = 0;  // 金幣，初始值為 0
     List<Skill> skills = new ArrayList<>();
 
+    EquipmentItem weapon;
+    EquipmentItem clothes;
+    EquipmentItem shoes;
+    EquipmentItem accessory1;
+    EquipmentItem accessory2;
+
     Player(double x, double y) {
         this.x = x;
         this.y = y;
         this.gold = 0;
+        this.weapon = null;
+        this.clothes = null;
+        this.shoes = null;
+        this.accessory1 = null;
+        this.accessory2 = null;
         // 初始化戰技
         skills.add(new SkillSaintBlood());
     }

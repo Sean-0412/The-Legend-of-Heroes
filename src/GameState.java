@@ -1,3 +1,8 @@
+/**
+ * GameState.java
+ * 說明: 定義或管理遊戲狀態相關結構（若包含常數或狀態邏輯在此維護）。
+ */
+
 package src;
 
 import java.io.Serializable;
@@ -26,10 +31,16 @@ public class GameState implements Serializable {
     public int playerPdef;
     public int playerMatk;
     public int playerMdef;
+    public EquipmentItem playerWeapon;
+    public EquipmentItem playerClothes;
+    public EquipmentItem playerShoes;
+    public EquipmentItem playerAccessory1;
+    public EquipmentItem playerAccessory2;
     
     // 玩家背包物品
     public int smallPotions;
     public int largePotions;
+    public int cpPotions;
     public int gold;
     
     // 隊友狀態（假設只有一個隊友）
@@ -47,10 +58,17 @@ public class GameState implements Serializable {
     public int companionMdef;
     public int companionLevel;
     public int companionExp;
+    public EquipmentItem companionWeapon;
+    public EquipmentItem companionClothes;
+    public EquipmentItem companionShoes;
+    public EquipmentItem companionAccessory1;
+    public EquipmentItem companionAccessory2;
     
     // 地圖和敵人狀態
     public int currentMapIndex;
     public Map<String, Boolean> defeatedEnemies;
+    public boolean bossCutscenePlayed;
+    public boolean bossDefeated;
     
     // 保存時間戳記
     public long saveTime;

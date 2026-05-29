@@ -1,3 +1,8 @@
+/**
+ * BattleUnit.java
+ * 說明: 戰鬥系統中的單位包裝類（用於排序與管理回合順序的資料結構）。
+ */
+
 package src;
 
 public class BattleUnit {

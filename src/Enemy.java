@@ -1,3 +1,8 @@
+/**
+ * Enemy.java
+ * 說明: 敵人實作類別，包含 AI 移動、偵測、戰鬥屬性與狀態管理。
+ */
+
 package src;
 
 public class Enemy {

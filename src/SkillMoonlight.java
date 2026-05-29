@@ -1,3 +1,8 @@
+/**
+ * SkillMoonlight.java
+ * 說明: 實作「月光」類型的戰技，處理技能效果、目標與動畫觸發。
+ */
+
 package src;
 
 public class SkillMoonlight extends Skill {

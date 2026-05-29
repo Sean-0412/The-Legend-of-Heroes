@@ -1,3 +1,8 @@
+/**
+ * Companion.java
+ * 說明: 隊友類別，包含跟隨玩家、戰鬥屬性與技能等行為。
+ */
+
 package src;
 
 import java.util.ArrayList;
@@ -35,10 +40,21 @@ public class Companion {
     // 戰技系統
     List<Skill> skills = new ArrayList<>();
 
+    EquipmentItem weapon;
+    EquipmentItem clothes;
+    EquipmentItem shoes;
+    EquipmentItem accessory1;
+    EquipmentItem accessory2;
+
     Companion(double x, double y, String name) {
         this.x = x;
         this.y = y;
         this.name = name;
+        this.weapon = null;
+        this.clothes = null;
+        this.shoes = null;
+        this.accessory1 = null;
+        this.accessory2 = null;
         // 初始化戰技
         skills.add(new SkillMoonSlice());
         skills.add(new SkillMoonlight());
