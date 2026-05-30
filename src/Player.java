@@ -34,9 +34,10 @@ public class Player {
     int mdef = 12; // 魔防
     int battleSpeed = 50; // 戰鬥速度（用於決定行動順序）
 
-    int smallPotions = 3;
-    int largePotions = 1;
-    int gold = 0;  // 金幣，初始值為 0
+    public int smallPotions = 3;
+    public int largePotions = 1;
+    public int cpPotions = 0;
+    public int gold = 0;  // 金幣，初始值為 0
     List<Skill> skills = new ArrayList<>();
 
     EquipmentItem weapon;
@@ -112,6 +113,30 @@ public class Player {
                 gold += cost;
                 return false;
         }
+        return true;
+    }
+
+    public boolean buyPotion(String potionType, int cost) {
+        if (gold < cost) {
+            return false;
+        }
+
+        gold -= cost;
+        switch (potionType) {
+            case "small":
+                smallPotions++;
+                break;
+            case "large":
+                largePotions++;
+                break;
+            case "cp":
+                cpPotions++;
+                break;
+            default:
+                gold += cost;
+                return false;
+        }
+
         return true;
     }
 }

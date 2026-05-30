@@ -21,15 +21,24 @@ class GamePanel extends JPanel implements ActionListener, KeyListener, MouseList
     int[][] map;
     final int TILE_SIZE = 40;
     final double BATTLE_PLAYER_SCALE = 1.0;
-    final int BOSS_MAP_INDEX = 2;
+    final int VILLAGE_MAP_INDEX = 2;
+    final int BOSS_MAP_INDEX = 3;
     final double MAP_RIGHT_WIDTH_SCALE = 2;
     final double MAP_LEFT_WIDTH_SCALE = 1.5;
     final double MAP_RIGHT_HEIGHT_SCALE = 1.7; // 调整正右/右走圖片高度用
     final double MAP_LEFT_HEIGHT_SCALE = 1.2375;
-    final int SHOP_NPC_MAP_INDEX = 0;
-    final int SHOP_NPC_TILE_X = 8;
+    final int SHOP_NPC_MAP_INDEX = VILLAGE_MAP_INDEX;
+    final int SHOP_NPC_TILE_X = 9;
     final int SHOP_NPC_TILE_Y = 6;
     final double SHOP_NPC_INTERACT_RANGE = 70.0;
+    final int INN_NPC_MAP_INDEX = VILLAGE_MAP_INDEX;
+    final int INN_NPC_TILE_X = 7;
+    final int INN_NPC_TILE_Y = 6;
+    final double INN_NPC_INTERACT_RANGE = 70.0;
+    final int TRAINER_NPC_MAP_INDEX = VILLAGE_MAP_INDEX;
+    final int TRAINER_NPC_TILE_X = 12;
+    final int TRAINER_NPC_TILE_Y = 6;
+    final double TRAINER_NPC_INTERACT_RANGE = 70.0;
 
     // multi-map support
     int mapIndex = 0;
@@ -133,6 +142,8 @@ class GamePanel extends JPanel implements ActionListener, KeyListener, MouseList
     int[] battleScreenCompanionY = new int[4];  // 隊友在戰鬥螢幕上的Y坐標
     BufferedImage battlePlayerSprite;
     BufferedImage shopNpcSprite;
+    BufferedImage innNpcSprite;
+    BufferedImage trainerNpcSprite;
 
     // 地圖玩家圖片
     BufferedImage playerIdleRight;
@@ -237,6 +248,8 @@ class GamePanel extends JPanel implements ActionListener, KeyListener, MouseList
 
         // 嘗試載入商人立繪（檔名放在 resources/shop_npc.png）
         shopNpcSprite = loadSprite("shop_npc.png");
+        innNpcSprite = loadSprite("inn_npc.png");
+        trainerNpcSprite = loadSprite("trainer_npc.png");
     }
 
     private BufferedImage loadSprite(String fileName) {
@@ -349,7 +362,7 @@ class GamePanel extends JPanel implements ActionListener, KeyListener, MouseList
     }
 
     private void initMaps() {
-        allMaps = new int[3][][];
+        allMaps = new int[4][][];
 
         // ------- 地圖 0：草原 -------
         allMaps[0] = new int[15][20];
@@ -395,36 +408,60 @@ class GamePanel extends JPanel implements ActionListener, KeyListener, MouseList
         allMaps[1][11][15] = 1;
         allMaps[1][12][15] = 1;
 
-        // ------- 地圖 2：魔王殿 -------
+        // ------- 地圖 2：村莊 -------
         allMaps[2] = new int[15][20];
+        for (int y = 0; y < 15; y++)
+            for (int x = 0; x < 20; x++) {
+                boolean border = (x == 0 || y == 0 || x == 19 || y == 14);
+                boolean portalLeft = (x == 0 && y >= 7 && y <= 8);
+                boolean portalRight = (x == 19 && y >= 7 && y <= 8);
+                allMaps[2][y][x] = (border && !portalLeft && !portalRight) ? 1 : 0;
+            }
+        // 村莊建築/路障，NPC 站位保持可走
+        for (int x = 3; x <= 5; x++) {
+            allMaps[2][3][x] = 1;
+        }
+        for (int x = 14; x <= 16; x++) {
+            allMaps[2][3][x] = 1;
+        }
+        allMaps[2][10][4] = 1;
+        allMaps[2][10][15] = 1;
+        // 村莊 NPC 位置：商人、旅館與訓練師，保持站位格可通行並由繪圖/互動方法使用。
+        allMaps[SHOP_NPC_MAP_INDEX][SHOP_NPC_TILE_Y][SHOP_NPC_TILE_X] = 0;
+        allMaps[INN_NPC_MAP_INDEX][INN_NPC_TILE_Y][INN_NPC_TILE_X] = 0;
+        allMaps[TRAINER_NPC_MAP_INDEX][TRAINER_NPC_TILE_Y][TRAINER_NPC_TILE_X] = 0;
+
+        // ------- 地圖 3：魔王殿 -------
+        allMaps[3] = new int[15][20];
         for (int y = 0; y < 15; y++)
             for (int x = 0; x < 20; x++) {
                 boolean border = (x == 0 || y == 0 || x == 19 || y == 14);
                 // 左邊開傳送門出口（行 7-8）
                 boolean portalLeft = (x == 0 && y >= 7 && y <= 8);
-                allMaps[2][y][x] = (border && !portalLeft) ? 1 : 0;
+                allMaps[3][y][x] = (border && !portalLeft) ? 1 : 0;
             }
         // 魔王殿內部牆壁（環繞王座區）
         for (int x = 6; x <= 13; x++) {
-            allMaps[2][4][x] = 1;
-            allMaps[2][10][x] = 1;
+            allMaps[3][4][x] = 1;
+            allMaps[3][10][x] = 1;
         }
         for (int y = 5; y <= 9; y++) {
-            allMaps[2][y][6] = 1;
-            allMaps[2][y][13] = 1;
+            allMaps[3][y][6] = 1;
+            allMaps[3][y][13] = 1;
         }
         // 王座前障礙
-        allMaps[2][8][9] = 1;
-        allMaps[2][8][10] = 1;
+        allMaps[3][8][9] = 1;
+        allMaps[3][8][10] = 1;
         // 牆壁開口
-        allMaps[2][7][6] = 0;
-        allMaps[2][7][13] = 0;
+        allMaps[3][7][6] = 0;
+        allMaps[3][7][13] = 0;
 
         // ------- 敵人列表 -------
         allEnemies = new java.util.ArrayList<>();
         allEnemies.add(spawnEnemiesForMap(0));
         allEnemies.add(spawnEnemiesForMap(1));
         allEnemies.add(spawnEnemiesForMap(2));
+        allEnemies.add(spawnEnemiesForMap(3));
 
         map = allMaps[0];
         enemies = allEnemies.get(0);
@@ -439,7 +476,7 @@ class GamePanel extends JPanel implements ActionListener, KeyListener, MouseList
             list.add(new Enemy(10, 4));
             list.add(new Enemy(15, 8));
             list.add(new Enemy(12, 11));
-        } else if (idx == 2) {
+        } else if (idx == 3) {
             if (!bossDefeated) {
                 Enemy boss = new Enemy(10, 7, "魔王", 12, 520, 70, 24, 20, 320, 28, true);
                 boss.moveSpeed = 1.2;
@@ -576,6 +613,10 @@ class GamePanel extends JPanel implements ActionListener, KeyListener, MouseList
             // 背景半透明遮罩
             g2d.setColor(new Color(0, 0, 0, 200));
             g2d.fillRect(0, 0, getWidth(), getHeight());
+
+            g2d.setColor(Color.YELLOW);
+            g2d.setFont(new Font("Microsoft JhengHei", Font.BOLD, 16));
+            g2d.drawString("金幣: " + player.gold + " G", 20, 30);
 
             // 動畫偏移計算
             int offsetX = 0;
@@ -1131,6 +1172,10 @@ class GamePanel extends JPanel implements ActionListener, KeyListener, MouseList
             floorA = new Color(40, 35, 30); // 地下城深
             floorB = new Color(55, 50, 42); // 地下城淺
             wallCol = new Color(80, 70, 60); // 石頭牆
+        } else if (mapIndex == VILLAGE_MAP_INDEX) {
+            floorA = new Color(86, 132, 74); // 村莊草地
+            floorB = new Color(112, 150, 86); // 村莊小徑
+            wallCol = new Color(126, 96, 58); // 木牆
         } else {
             floorA = new Color(60, 22, 18); // 魔王殿深
             floorB = new Color(80, 30, 24); // 魔王殿淺
@@ -1169,6 +1214,17 @@ class GamePanel extends JPanel implements ActionListener, KeyListener, MouseList
             g2d.setColor(rightPortal);
             g2d.fillRoundRect(19 * TILE_SIZE, 7 * TILE_SIZE, TILE_SIZE, 2 * TILE_SIZE, 10, 10);
             g2d.setColor(rightPortal.darker());
+            g2d.drawString("→村莊", 19 * TILE_SIZE - 4, 7 * TILE_SIZE - 4);
+        } else if (mapIndex == VILLAGE_MAP_INDEX) {
+            Color leftPortal = new Color(80, 160, 255, 180);
+            Color rightPortal = new Color(220, 90, 70, 190);
+            g2d.setColor(leftPortal);
+            g2d.fillRoundRect(0, 7 * TILE_SIZE, TILE_SIZE, 2 * TILE_SIZE, 10, 10);
+            g2d.setColor(leftPortal.darker());
+            g2d.drawString("←地下城", 2, 7 * TILE_SIZE - 4);
+            g2d.setColor(rightPortal);
+            g2d.fillRoundRect(19 * TILE_SIZE, 7 * TILE_SIZE, TILE_SIZE, 2 * TILE_SIZE, 10, 10);
+            g2d.setColor(rightPortal.darker());
             g2d.drawString("→魔王殿", 19 * TILE_SIZE - 6, 7 * TILE_SIZE - 4);
         } else {
             Color portalColor = new Color(220, 90, 70, 190);
@@ -1176,10 +1232,12 @@ class GamePanel extends JPanel implements ActionListener, KeyListener, MouseList
             g2d.setColor(portalColor);
             g2d.fillRoundRect(0, 7 * TILE_SIZE, TILE_SIZE, 2 * TILE_SIZE, 10, 10);
             g2d.setColor(portalColor.darker());
-            g2d.drawString("←地下城", 2, 7 * TILE_SIZE - 4);
+            g2d.drawString("←村莊", 2, 7 * TILE_SIZE - 4);
         }
 
         drawShopNpc(g2d);
+        drawInnNpc(g2d);
+        drawTrainerNpc(g2d);
 
         for (Enemy e : enemies) {
             if (e.shouldRenderOnMap()) {
@@ -1223,6 +1281,10 @@ class GamePanel extends JPanel implements ActionListener, KeyListener, MouseList
             g2d.setColor(Color.BLUE);
             g2d.fillOval((int) player.x + 8, (int) player.y + 8, 24, 24);
         }
+
+        g2d.setColor(Color.YELLOW);
+        g2d.setFont(new Font("Microsoft JhengHei", Font.BOLD, 16));
+        g2d.drawString("金幣: " + player.gold + " G", 20, 30);
 
         if (bossCutsceneActive) {
             drawBossCutsceneDialog(g2d);
@@ -1621,6 +1683,7 @@ class GamePanel extends JPanel implements ActionListener, KeyListener, MouseList
         java.util.List<String> bagItems = new java.util.ArrayList<>();
         bagItems.add("小藥 x" + player.smallPotions);
         bagItems.add("大藥 x" + player.largePotions);
+        bagItems.add("CP藥水 x" + player.cpPotions);
         bagItems.add("金幣 x" + player.gold);
 
         int itemY = detailY + 84;
@@ -2527,6 +2590,13 @@ class GamePanel extends JPanel implements ActionListener, KeyListener, MouseList
                     mouseDown = false;
                     keyDown = true;
                     break;
+                case KeyEvent.VK_P:
+                    player.vx = 0;
+                    player.vy = 0;
+                    mouseDown = false;
+                    keyDown = false;
+                    showShopMenu();
+                    break;
             }
         } else if (state == 1 && currentEnemies.size() > 0) {
             // 如果顯示逃跑訊息，按任意鍵關閉
@@ -2669,9 +2739,35 @@ class GamePanel extends JPanel implements ActionListener, KeyListener, MouseList
         if (state == 0) {
             if (e.getButton() == MouseEvent.BUTTON3) {
                 if (!showMapMenu && isNearShopNpc()) {
+                    player.vx = 0;
+                    player.vy = 0;
+                    mouseDown = false;
+                    keyDown = false;
                     shopOpen = true;
                     try {
                         Shop.showShop(this);
+                    } finally {
+                        shopOpen = false;
+                    }
+                } else if (!showMapMenu && isNearInnNpc()) {
+                    player.vx = 0;
+                    player.vy = 0;
+                    mouseDown = false;
+                    keyDown = false;
+                    shopOpen = true;
+                    try {
+                        showInnMenu();
+                    } finally {
+                        shopOpen = false;
+                    }
+                } else if (!showMapMenu && isNearTrainerNpc()) {
+                    player.vx = 0;
+                    player.vy = 0;
+                    mouseDown = false;
+                    keyDown = false;
+                    shopOpen = true;
+                    try {
+                        showTrainerMenu();
                     } finally {
                         shopOpen = false;
                     }
@@ -3004,6 +3100,44 @@ class GamePanel extends JPanel implements ActionListener, KeyListener, MouseList
                 <= SHOP_NPC_INTERACT_RANGE;
     }
 
+    private double getInnNpcCenterX() {
+        return INN_NPC_TILE_X * TILE_SIZE + TILE_SIZE / 2.0;
+    }
+
+    private double getInnNpcCenterY() {
+        return INN_NPC_TILE_Y * TILE_SIZE + TILE_SIZE / 2.0;
+    }
+
+    private boolean isNearInnNpc() {
+        if (state != 0 || mapIndex != INN_NPC_MAP_INDEX) {
+            return false;
+        }
+
+        double playerCenterX = player.x + TILE_SIZE / 2.0;
+        double playerCenterY = player.y + TILE_SIZE / 2.0;
+        return Math.hypot(playerCenterX - getInnNpcCenterX(), playerCenterY - getInnNpcCenterY())
+                <= INN_NPC_INTERACT_RANGE;
+    }
+
+    private double getTrainerNpcCenterX() {
+        return TRAINER_NPC_TILE_X * TILE_SIZE + TILE_SIZE / 2.0;
+    }
+
+    private double getTrainerNpcCenterY() {
+        return TRAINER_NPC_TILE_Y * TILE_SIZE + TILE_SIZE / 2.0;
+    }
+
+    private boolean isNearTrainerNpc() {
+        if (state != 0 || mapIndex != TRAINER_NPC_MAP_INDEX) {
+            return false;
+        }
+
+        double playerCenterX = player.x + TILE_SIZE / 2.0;
+        double playerCenterY = player.y + TILE_SIZE / 2.0;
+        return Math.hypot(playerCenterX - getTrainerNpcCenterX(), playerCenterY - getTrainerNpcCenterY())
+                <= TRAINER_NPC_INTERACT_RANGE;
+    }
+
     private void drawShopNpc(Graphics2D g2d) {
         if (mapIndex != SHOP_NPC_MAP_INDEX) {
             return;
@@ -3038,6 +3172,80 @@ class GamePanel extends JPanel implements ActionListener, KeyListener, MouseList
             g2d.fillRoundRect(npcX - 24, npcY - 24, 90, 18, 8, 8);
             g2d.setColor(new Color(255, 230, 120));
             g2d.drawString("右鍵開商店", npcX - 18, npcY - 10);
+        }
+    }
+
+    private void drawInnNpc(Graphics2D g2d) {
+        if (mapIndex != INN_NPC_MAP_INDEX) {
+            return;
+        }
+
+        int npcX = INN_NPC_TILE_X * TILE_SIZE;
+        int npcY = INN_NPC_TILE_Y * TILE_SIZE;
+        if (innNpcSprite != null) {
+            int imgW = innNpcSprite.getWidth();
+            int imgH = innNpcSprite.getHeight();
+            double scale = Math.min((double) TILE_SIZE * 1.6 / imgW, (double) TILE_SIZE * 1.8 / imgH);
+            int drawW = (int) Math.round(imgW * scale);
+            int drawH = (int) Math.round(imgH * scale);
+            int drawX = (int) Math.round(getInnNpcCenterX() - drawW / 2.0);
+            int drawY = (int) Math.round(getInnNpcCenterY() - drawH / 2.0);
+            g2d.drawImage(innNpcSprite, drawX, drawY, drawW, drawH, null);
+            g2d.setColor(Color.BLACK);
+            g2d.setFont(new Font("Microsoft JhengHei", Font.BOLD, 12));
+            g2d.drawString("旅館", npcX + 2, npcY - 6);
+        } else {
+            g2d.setColor(new Color(56, 112, 154));
+            g2d.fillRoundRect(npcX + 8, npcY + 12, 24, 24, 8, 8);
+            g2d.setColor(new Color(232, 208, 170));
+            g2d.fillOval(npcX + 11, npcY + 4, 18, 18);
+            g2d.setColor(Color.BLACK);
+            g2d.setFont(new Font("Microsoft JhengHei", Font.BOLD, 11));
+            g2d.drawString("旅館", npcX + 5, npcY - 4);
+        }
+
+        if (isNearInnNpc()) {
+            g2d.setColor(new Color(0, 0, 0, 160));
+            g2d.fillRoundRect(npcX - 24, npcY - 24, 90, 18, 8, 8);
+            g2d.setColor(new Color(255, 230, 120));
+            g2d.drawString("右鍵住宿", npcX - 18, npcY - 10);
+        }
+    }
+
+    private void drawTrainerNpc(Graphics2D g2d) {
+        if (mapIndex != TRAINER_NPC_MAP_INDEX) {
+            return;
+        }
+
+        int npcX = TRAINER_NPC_TILE_X * TILE_SIZE;
+        int npcY = TRAINER_NPC_TILE_Y * TILE_SIZE;
+        if (trainerNpcSprite != null) {
+            int imgW = trainerNpcSprite.getWidth();
+            int imgH = trainerNpcSprite.getHeight();
+            double scale = Math.min((double) TILE_SIZE * 1.6 / imgW, (double) TILE_SIZE * 1.8 / imgH);
+            int drawW = (int) Math.round(imgW * scale);
+            int drawH = (int) Math.round(imgH * scale);
+            int drawX = (int) Math.round(getTrainerNpcCenterX() - drawW / 2.0);
+            int drawY = (int) Math.round(getTrainerNpcCenterY() - drawH / 2.0);
+            g2d.drawImage(trainerNpcSprite, drawX, drawY, drawW, drawH, null);
+            g2d.setColor(Color.BLACK);
+            g2d.setFont(new Font("Microsoft JhengHei", Font.BOLD, 12));
+            g2d.drawString("訓練師", npcX - 4, npcY - 6);
+        } else {
+            g2d.setColor(new Color(120, 62, 144));
+            g2d.fillRoundRect(npcX + 8, npcY + 12, 24, 24, 8, 8);
+            g2d.setColor(new Color(232, 208, 170));
+            g2d.fillOval(npcX + 11, npcY + 4, 18, 18);
+            g2d.setColor(Color.BLACK);
+            g2d.setFont(new Font("Microsoft JhengHei", Font.BOLD, 11));
+            g2d.drawString("訓練師", npcX - 2, npcY - 4);
+        }
+
+        if (isNearTrainerNpc()) {
+            g2d.setColor(new Color(0, 0, 0, 160));
+            g2d.fillRoundRect(npcX - 24, npcY - 24, 96, 18, 8, 8);
+            g2d.setColor(new Color(255, 230, 120));
+            g2d.drawString("右鍵訓練", npcX - 18, npcY - 10);
         }
     }
 
@@ -3079,6 +3287,10 @@ class GamePanel extends JPanel implements ActionListener, KeyListener, MouseList
             switchMap(2, 1 * TILE_SIZE, 7 * TILE_SIZE + 10);
         } else if (mapIndex == 2 && inPortalRows && cx <= TILE_SIZE) {
             switchMap(1, 18 * TILE_SIZE, 7 * TILE_SIZE + 10);
+        } else if (mapIndex == 2 && inPortalRows && cx >= 19 * TILE_SIZE) {
+            switchMap(3, 1 * TILE_SIZE, 7 * TILE_SIZE + 10);
+        } else if (mapIndex == 3 && inPortalRows && cx <= TILE_SIZE) {
+            switchMap(2, 18 * TILE_SIZE, 7 * TILE_SIZE + 10);
         }
     }
 
@@ -3310,6 +3522,209 @@ class GamePanel extends JPanel implements ActionListener, KeyListener, MouseList
         }
     }
 
+    private void showShopMenu() {
+        String[] options = {
+                "劣質小刀 (50金幣)",
+                "劣質法杖 (50金幣)",
+                "劣質護甲 (40金幣)",
+                "劣質斗篷 (40金幣)",
+                "小藥水 (15金幣)",
+                "大藥水 (30金幣)",
+                "CP藥水 (25金幣)",
+                "離開"
+        };
+
+        int choice = JOptionPane.showOptionDialog(
+                this,
+                "目前金幣: " + player.gold + " G\n請選擇要購買的商品:",
+                "商店",
+                JOptionPane.DEFAULT_OPTION,
+                JOptionPane.PLAIN_MESSAGE,
+                null,
+                options,
+                options[0]);
+
+        boolean success = false;
+        switch (choice) {
+            case 0:
+                success = player.buyEquipment("劣質小刀", 50, "patk", 5);
+                break;
+            case 1:
+                success = player.buyEquipment("劣質法杖", 50, "matk", 5);
+                break;
+            case 2:
+                success = player.buyEquipment("劣質護甲", 40, "pdef", 5);
+                break;
+            case 3:
+                success = player.buyEquipment("劣質斗篷", 40, "mdef", 5);
+                break;
+            case 4:
+                success = player.buyPotion("small", 15);
+                break;
+            case 5:
+                success = player.buyPotion("large", 30);
+                break;
+            case 6:
+                success = player.buyPotion("cp", 25);
+                break;
+            default:
+                return;
+        }
+
+        if (success) {
+            JOptionPane.showMessageDialog(this, "購買成功！");
+            repaint();
+        } else {
+            JOptionPane.showMessageDialog(this, "金幣不足！");
+        }
+    }
+
+    public void showInnMenu() {
+        int choice = JOptionPane.showConfirmDialog(
+                this,
+                "歡迎來到村莊旅館！休息一晚需要花費 30 金幣。是否要住宿？",
+                "旅館",
+                JOptionPane.YES_NO_OPTION);
+
+        if (choice != JOptionPane.YES_OPTION) {
+            return;
+        }
+
+        if (player.gold < 30) {
+            JOptionPane.showMessageDialog(this, "金幣不足！");
+            return;
+        }
+
+        player.gold -= 30;
+        player.hp = player.maxHp;
+        player.mana = player.maxMana;
+        for (Companion companion : companions) {
+            if (companion != null) {
+                companion.hp = companion.maxHp;
+                companion.mana = companion.maxMana;
+            }
+        }
+
+        JOptionPane.showMessageDialog(this, "全體體力與魔力已完全恢復！");
+        repaint();
+    }
+
+    public void showTrainerMenu() {
+        Object[] options = { "升級現有技能", "購買新技能", "離開" };
+        int choice = JOptionPane.showOptionDialog(
+                this,
+                "歡迎來到技能訓練所！\n目前金幣: " + player.gold + " G",
+                "技能訓練師",
+                JOptionPane.DEFAULT_OPTION,
+                JOptionPane.PLAIN_MESSAGE,
+                null,
+                options,
+                options[0]);
+
+        if (choice == 2 || choice == JOptionPane.CLOSED_OPTION) {
+            return;
+        }
+
+        Object[] actorOptions = { "勇者", "隨從" };
+        int actorChoice = JOptionPane.showOptionDialog(
+                this,
+                "請選擇要訓練的角色：",
+                "選擇角色",
+                JOptionPane.DEFAULT_OPTION,
+                JOptionPane.PLAIN_MESSAGE,
+                null,
+                actorOptions,
+                actorOptions[0]);
+
+        if (actorChoice == JOptionPane.CLOSED_OPTION) {
+            return;
+        }
+
+        java.util.List<Skill> targetSkills;
+        if (actorChoice == 0) {
+            targetSkills = player.skills;
+        } else {
+            if (companions.isEmpty() || companions.get(0) == null) {
+                JOptionPane.showMessageDialog(this, "目前沒有可訓練的隨從！");
+                return;
+            }
+            targetSkills = companions.get(0).skills;
+        }
+
+        if (choice == 0) {
+            if (targetSkills == null || targetSkills.isEmpty()) {
+                JOptionPane.showMessageDialog(this, "這名角色目前沒有可升級的技能！");
+                return;
+            }
+
+            String[] skillOptions = new String[targetSkills.size()];
+            for (int i = 0; i < targetSkills.size(); i++) {
+                Skill skill = targetSkills.get(i);
+                skillOptions[i] = skill.name + " Lv." + skill.level + " (100金幣)";
+            }
+
+            int skillChoice = JOptionPane.showOptionDialog(
+                    this,
+                    "請選擇要升級的技能：",
+                    "升級現有技能",
+                    JOptionPane.DEFAULT_OPTION,
+                    JOptionPane.PLAIN_MESSAGE,
+                    null,
+                    skillOptions,
+                    skillOptions[0]);
+
+            if (skillChoice == JOptionPane.CLOSED_OPTION) {
+                return;
+            }
+
+            if (player.gold < 100) {
+                JOptionPane.showMessageDialog(this, "金幣不足！");
+                return;
+            }
+
+            player.gold -= 100;
+            targetSkills.get(skillChoice).upgrade();
+            JOptionPane.showMessageDialog(this, "技能升級成功！");
+            repaint();
+            return;
+        }
+
+        Object[] skillOptions = { "雷擊術 (80金幣)", "群體防護 (120金幣)", "取消" };
+        int newSkillChoice = JOptionPane.showOptionDialog(
+                this,
+                "請選擇要購買的新技能：",
+                "購買新技能",
+                JOptionPane.DEFAULT_OPTION,
+                JOptionPane.PLAIN_MESSAGE,
+                null,
+                skillOptions,
+                skillOptions[0]);
+
+        if (newSkillChoice == 2 || newSkillChoice == JOptionPane.CLOSED_OPTION) {
+            return;
+        }
+
+        int cost;
+        Skill newSkill;
+        if (newSkillChoice == 0) {
+            cost = 80;
+            newSkill = new SkillLightning();
+        } else {
+            cost = 120;
+            newSkill = new SkillGroupGuard();
+        }
+
+        if (player.gold < cost) {
+            JOptionPane.showMessageDialog(this, "金幣不足！");
+            return;
+        }
+
+        player.gold -= cost;
+        targetSkills.add(newSkill);
+        JOptionPane.showMessageDialog(this, "新技能購買成功！");
+        repaint();
+    }
+
     private String formatTimeAgo(long milliseconds) {
         long seconds = milliseconds / 1000;
         long minutes = seconds / 60;
@@ -3362,6 +3777,19 @@ class GamePanel extends JPanel implements ActionListener, KeyListener, MouseList
             return fallbackPlayer.patk;
         }
         return player != null ? player.patk : 1;
+    }
+
+    int getCurrentSkillCasterMatk(Player fallbackPlayer) {
+        if (currentActor instanceof Companion) {
+            return ((Companion) currentActor).matk;
+        }
+        if (currentActor instanceof Player) {
+            return ((Player) currentActor).matk;
+        }
+        if (fallbackPlayer != null) {
+            return fallbackPlayer.matk;
+        }
+        return player != null ? player.matk : 1;
     }
 
     void dealFlatDamageToAllEnemies(int damage) {
@@ -3676,7 +4104,9 @@ class GamePanel extends JPanel implements ActionListener, KeyListener, MouseList
             playLoopingMapMusic("ED6101.wav");
         } else if (mapIndex == 1) {
             playLoopingMapMusic("ED6106.wav");
-        } else if (mapIndex == 2) {
+        } else if (mapIndex == VILLAGE_MAP_INDEX) {
+            playLoopingMapMusic("ED6101.wav");
+        } else if (mapIndex == BOSS_MAP_INDEX) {
             playLoopingMapMusic("ED6106.wav");
         } else {
             stopCurrentMusic();
@@ -3973,6 +4403,7 @@ class GamePanel extends JPanel implements ActionListener, KeyListener, MouseList
             
             state.smallPotions = player.smallPotions;
             state.largePotions = player.largePotions;
+            state.cpPotions = player.cpPotions;
             state.gold = player.gold;
             state.playerWeapon = player.weapon;
             state.playerClothes = player.clothes;
@@ -4075,6 +4506,7 @@ class GamePanel extends JPanel implements ActionListener, KeyListener, MouseList
             
             player.smallPotions = gameStateData.smallPotions;
             player.largePotions = gameStateData.largePotions;
+            player.cpPotions = gameStateData.cpPotions;
             player.gold = gameStateData.gold;
             player.weapon = gameStateData.playerWeapon;
             player.clothes = gameStateData.playerClothes;
@@ -4614,7 +5046,6 @@ class GamePanel extends JPanel implements ActionListener, KeyListener, MouseList
             return;
         }
         
-        Object currentCharacter = currentActor;
         int healAmount = 0;
         
         if ("small".equals(selectingPotionType)) {
@@ -4623,21 +5054,30 @@ class GamePanel extends JPanel implements ActionListener, KeyListener, MouseList
             healAmount = 80;
         }
         
-        // 給目標角色治療
-        if (target instanceof Player) {
-            ((Player) target).heal(healAmount);
-        } else if (target instanceof Companion) {
-            ((Companion) target).heal(healAmount);
+        if ("cp".equals(selectingPotionType)) {
+            if (target instanceof Player) {
+                Player p = (Player) target;
+                p.cp = Math.min(p.cp + 50, p.maxCp);
+            } else if (target instanceof Companion) {
+                Companion c = (Companion) target;
+                c.cp = Math.min(c.cp + 50, c.maxCp);
+            }
+        } else {
+            // 給目標角色治療
+            if (target instanceof Player) {
+                ((Player) target).heal(healAmount);
+            } else if (target instanceof Companion) {
+                ((Companion) target).heal(healAmount);
+            }
         }
         
         // 消耗藥水
-        if (currentCharacter instanceof Player) {
-            Player p = (Player) currentCharacter;
-            if ("small".equals(selectingPotionType)) {
-                p.smallPotions = Math.max(0, p.smallPotions - 1);
-            } else if ("large".equals(selectingPotionType)) {
-                p.largePotions = Math.max(0, p.largePotions - 1);
-            }
+        if ("small".equals(selectingPotionType)) {
+            player.smallPotions = Math.max(0, player.smallPotions - 1);
+        } else if ("large".equals(selectingPotionType)) {
+            player.largePotions = Math.max(0, player.largePotions - 1);
+        } else if ("cp".equals(selectingPotionType)) {
+            player.cpPotions = Math.max(0, player.cpPotions - 1);
         }
         
         // 用藥完成後依 AT 重新排序
@@ -4716,30 +5156,16 @@ class GamePanel extends JPanel implements ActionListener, KeyListener, MouseList
 
     // 顯示藥物菜單並進入目標選擇模式
     private void showPotionMenuForTargeting() {
-        Object currentCharacter = currentActor;
-        if (currentCharacter == null) {
-            currentCharacter = player;
-        }
+        int smallPotions = player.smallPotions;
+        int largePotions = player.largePotions;
+        int cpPotions = player.cpPotions;
 
-        int smallPotions = 0;
-        int largePotions = 0;
-        
-        if (currentCharacter instanceof Player) {
-            Player p = (Player) currentCharacter;
-            smallPotions = p.smallPotions;
-            largePotions = p.largePotions;
-        } else if (currentCharacter instanceof Companion) {
-            // 隊友使用玩家的藥水
-            smallPotions = player.smallPotions;
-            largePotions = player.largePotions;
-        }
-
-        if (smallPotions + largePotions <= 0) {
+        if (smallPotions + largePotions + cpPotions <= 0) {
             JOptionPane.showMessageDialog(this, "沒有可用的藥水！");
             return;
         }
 
-        Object[] options = { "小藥 (+40)", "大藥 (+80)", "取消" };
+        Object[] options = { "小藥 (+40)", "大藥 (+80)", "CP藥水 (+50 CP)", "取消" };
         int choice = JOptionPane.showOptionDialog(this,
                 "選擇藥水種類", "藥水",
                 JOptionPane.DEFAULT_OPTION, JOptionPane.PLAIN_MESSAGE,
@@ -4751,6 +5177,10 @@ class GamePanel extends JPanel implements ActionListener, KeyListener, MouseList
             repaint();
         } else if (choice == 1 && largePotions > 0) {
             selectingPotionType = "large";
+            selectingTargetMode = "potion";  // 進入藥水目標選擇模式
+            repaint();
+        } else if (choice == 2 && cpPotions > 0) {
+            selectingPotionType = "cp";
             selectingTargetMode = "potion";  // 進入藥水目標選擇模式
             repaint();
         }

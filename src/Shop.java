@@ -17,6 +17,9 @@ class Shop {
                 "劣質法杖 - 50G (+5 魔攻)",
                 "劣質護甲 - 40G (+5 物防)",
                 "劣質斗篷 - 40G (+5 魔防)",
+                "小藥水 - 15G (+40 HP)",
+                "大藥水 - 30G (+80 HP)",
+                "CP藥水 - 25G (+50 CP)",
                 "取消"
         };
 
@@ -52,6 +55,15 @@ class Shop {
                 break;
             case 3:
                 bought = player.buyEquipment("劣質斗篷", 40, "mdef", 5);
+                break;
+            case 4:
+                bought = player.buyPotion("small", 15);
+                break;
+            case 5:
+                bought = player.buyPotion("large", 30);
+                break;
+            case 6:
+                bought = player.buyPotion("cp", 25);
                 break;
             default:
                 return;

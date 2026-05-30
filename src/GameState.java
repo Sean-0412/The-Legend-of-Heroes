@@ -40,6 +40,7 @@ public class GameState implements Serializable {
     // 玩家背包物品
     public int smallPotions;
     public int largePotions;
+    public int cpPotions;
     public int gold;
     
     // 隊友狀態（假設只有一個隊友）
