@@ -38,6 +38,8 @@ public class Player {
     public int largePotions = 1;
     public int cpPotions = 0;
     public int gold = 0;  // 金幣，初始值為 0
+    public int activeQuestLevel = 0; // 0代表無任務，1代表低難度，2代表中難度，3代表高難度
+    public int questKillProgress = 0; // 記錄目前任務已擊殺的目標怪數
     List<Skill> skills = new ArrayList<>();
 
     EquipmentItem weapon;

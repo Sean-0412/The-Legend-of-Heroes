@@ -39,6 +39,10 @@ class GamePanel extends JPanel implements ActionListener, KeyListener, MouseList
     final int TRAINER_NPC_TILE_X = 12;
     final int TRAINER_NPC_TILE_Y = 6;
     final double TRAINER_NPC_INTERACT_RANGE = 70.0;
+    final int CHIEF_NPC_MAP_INDEX = VILLAGE_MAP_INDEX;
+    final int CHIEF_NPC_TILE_X = 10;
+    final int CHIEF_NPC_TILE_Y = 5;
+    final double CHIEF_NPC_INTERACT_RANGE = 70.0;
 
     // multi-map support
     int mapIndex = 0;
@@ -426,10 +430,11 @@ class GamePanel extends JPanel implements ActionListener, KeyListener, MouseList
         }
         allMaps[2][10][4] = 1;
         allMaps[2][10][15] = 1;
-        // 村莊 NPC 位置：商人、旅館與訓練師，保持站位格可通行並由繪圖/互動方法使用。
+        // 村莊 NPC 位置：商人、旅館、訓練師與村長，保持站位格可通行並由繪圖/互動方法使用。
         allMaps[SHOP_NPC_MAP_INDEX][SHOP_NPC_TILE_Y][SHOP_NPC_TILE_X] = 0;
         allMaps[INN_NPC_MAP_INDEX][INN_NPC_TILE_Y][INN_NPC_TILE_X] = 0;
         allMaps[TRAINER_NPC_MAP_INDEX][TRAINER_NPC_TILE_Y][TRAINER_NPC_TILE_X] = 0;
+        allMaps[CHIEF_NPC_MAP_INDEX][CHIEF_NPC_TILE_Y][CHIEF_NPC_TILE_X] = 0;
 
         // ------- 地圖 3：魔王殿 -------
         allMaps[3] = new int[15][20];
@@ -1238,6 +1243,7 @@ class GamePanel extends JPanel implements ActionListener, KeyListener, MouseList
         drawShopNpc(g2d);
         drawInnNpc(g2d);
         drawTrainerNpc(g2d);
+        drawChiefNpc(g2d);
 
         for (Enemy e : enemies) {
             if (e.shouldRenderOnMap()) {
@@ -2153,6 +2159,7 @@ class GamePanel extends JPanel implements ActionListener, KeyListener, MouseList
                                     originalBattleEnemies.clear();
                                     
                                     isZeroExpSettlement = false; // 重置為敵人被擊敗狀態
+                                    updateQuestKillProgress();
                                     // 經驗分配給全隊
                                     int totalExp = 60;  // 假設每個敵人60經驗
                                     levelsGained = player.gainExp(totalExp / 2);
@@ -2225,6 +2232,7 @@ class GamePanel extends JPanel implements ActionListener, KeyListener, MouseList
                                         originalBattleEnemies.clear();
                                         
                                         isZeroExpSettlement = false; // 重置為敵人被擊敗狀態
+                                        updateQuestKillProgress();
                                         int exp = 60;
                                         levelsGained = player.gainExp(exp / 2);
                                         for (int i = 0; i < companions.size(); i++) {
@@ -2771,6 +2779,17 @@ class GamePanel extends JPanel implements ActionListener, KeyListener, MouseList
                     } finally {
                         shopOpen = false;
                     }
+                } else if (!showMapMenu && isNearChiefNpc()) {
+                    player.vx = 0;
+                    player.vy = 0;
+                    mouseDown = false;
+                    keyDown = false;
+                    shopOpen = true;
+                    try {
+                        showChiefMenu();
+                    } finally {
+                        shopOpen = false;
+                    }
                 }
                 return;
             }
@@ -3138,6 +3157,25 @@ class GamePanel extends JPanel implements ActionListener, KeyListener, MouseList
                 <= TRAINER_NPC_INTERACT_RANGE;
     }
 
+    private double getChiefNpcCenterX() {
+        return CHIEF_NPC_TILE_X * TILE_SIZE + TILE_SIZE / 2.0;
+    }
+
+    private double getChiefNpcCenterY() {
+        return CHIEF_NPC_TILE_Y * TILE_SIZE + TILE_SIZE / 2.0;
+    }
+
+    private boolean isNearChiefNpc() {
+        if (state != 0 || mapIndex != CHIEF_NPC_MAP_INDEX) {
+            return false;
+        }
+
+        double playerCenterX = player.x + TILE_SIZE / 2.0;
+        double playerCenterY = player.y + TILE_SIZE / 2.0;
+        return Math.hypot(playerCenterX - getChiefNpcCenterX(), playerCenterY - getChiefNpcCenterY())
+                <= CHIEF_NPC_INTERACT_RANGE;
+    }
+
     private void drawShopNpc(Graphics2D g2d) {
         if (mapIndex != SHOP_NPC_MAP_INDEX) {
             return;
@@ -3246,6 +3284,31 @@ class GamePanel extends JPanel implements ActionListener, KeyListener, MouseList
             g2d.fillRoundRect(npcX - 24, npcY - 24, 96, 18, 8, 8);
             g2d.setColor(new Color(255, 230, 120));
             g2d.drawString("右鍵訓練", npcX - 18, npcY - 10);
+        }
+    }
+
+    private void drawChiefNpc(Graphics2D g2d) {
+        if (mapIndex != CHIEF_NPC_MAP_INDEX) {
+            return;
+        }
+
+        int npcX = CHIEF_NPC_TILE_X * TILE_SIZE;
+        int npcY = CHIEF_NPC_TILE_Y * TILE_SIZE;
+        g2d.setColor(new Color(92, 92, 92));
+        g2d.fillRoundRect(npcX + 8, npcY + 12, 24, 24, 8, 8);
+        g2d.setColor(new Color(232, 208, 170));
+        g2d.fillOval(npcX + 11, npcY + 4, 18, 18);
+        g2d.setColor(new Color(245, 245, 245));
+        g2d.fillArc(npcX + 9, npcY + 9, 22, 18, 180, 180);
+        g2d.setColor(Color.BLACK);
+        g2d.setFont(new Font("Microsoft JhengHei", Font.BOLD, 11));
+        g2d.drawString("村長", npcX + 5, npcY - 4);
+
+        if (isNearChiefNpc()) {
+            g2d.setColor(new Color(0, 0, 0, 160));
+            g2d.fillRoundRect(npcX - 24, npcY - 24, 96, 18, 8, 8);
+            g2d.setColor(new Color(255, 230, 120));
+            g2d.drawString("右鍵交談", npcX - 18, npcY - 10);
         }
     }
 
@@ -3579,6 +3642,66 @@ class GamePanel extends JPanel implements ActionListener, KeyListener, MouseList
         }
     }
 
+    public void showChiefMenu() {
+        if (player.activeQuestLevel == 0) {
+            Object[] options = {
+                    "低難度(任意討伐3怪)",
+                    "中難度(草原討伐5怪)",
+                    "高難度(地下城討伐8怪)",
+                    "離開"
+            };
+
+            int choice = JOptionPane.showOptionDialog(
+                    this,
+                    "村長：村莊需要你的協助，請選擇一項任務。",
+                    "村長",
+                    JOptionPane.DEFAULT_OPTION,
+                    JOptionPane.PLAIN_MESSAGE,
+                    null,
+                    options,
+                    options[0]);
+
+            if (choice >= 0 && choice <= 2) {
+                player.activeQuestLevel = choice + 1;
+                player.questKillProgress = 0;
+                JOptionPane.showMessageDialog(this, "村長：拜託你了，年輕人！");
+            }
+            return;
+        }
+
+        int target = 0;
+        if (player.activeQuestLevel == 1) {
+            target = 3;
+        } else if (player.activeQuestLevel == 2) {
+            target = 5;
+        } else if (player.activeQuestLevel == 3) {
+            target = 8;
+        }
+
+        if (player.questKillProgress < target) {
+            JOptionPane.showMessageDialog(
+                    this,
+                    "村長：你還沒完成任務喔！目前進度: "
+                            + player.questKillProgress + " / " + target);
+            return;
+        }
+
+        if (player.activeQuestLevel == 1) {
+            player.gold += 20;
+        } else if (player.activeQuestLevel == 2) {
+            player.gold += 50;
+            player.smallPotions += 1;
+        } else if (player.activeQuestLevel == 3) {
+            player.gold += 100;
+            player.largePotions += 1;
+        }
+
+        JOptionPane.showMessageDialog(this, "村長：太感謝你了！這是你的獎勵。");
+        player.activeQuestLevel = 0;
+        player.questKillProgress = 0;
+        repaint();
+    }
+
     public void showInnMenu() {
         int choice = JOptionPane.showConfirmDialog(
                 this,
@@ -3814,6 +3937,16 @@ class GamePanel extends JPanel implements ActionListener, KeyListener, MouseList
         }
     }
 
+    private void updateQuestKillProgress() {
+        if (player.activeQuestLevel == 1) {
+            player.questKillProgress++;
+        } else if (player.activeQuestLevel == 2 && mapIndex == 0) {
+            player.questKillProgress++;
+        } else if (player.activeQuestLevel == 3 && mapIndex == 1) {
+            player.questKillProgress++;
+        }
+    }
+
     private boolean tryEnterVictorySettlementIfNoEnemies() {
         if (!currentEnemies.isEmpty()) {
             return false;
@@ -3826,6 +3959,7 @@ class GamePanel extends JPanel implements ActionListener, KeyListener, MouseList
         originalBattleEnemies.clear();
 
         isZeroExpSettlement = false;
+        updateQuestKillProgress();
         int totalExp = 60;
         levelsGained = player.gainExp(totalExp / 2);
         for (int i = 0; i < companions.size(); i++) {
