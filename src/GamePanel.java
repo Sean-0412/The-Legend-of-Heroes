@@ -385,6 +385,8 @@ class GamePanel extends JPanel implements ActionListener, KeyListener, MouseList
         allMaps[0][3][12] = 1;
         allMaps[0][10][3] = 1;
         allMaps[0][10][4] = 1;
+        allMaps[0][14][9] = 0;
+        allMaps[0][14][10] = 0;
 
         // ------- 地圖 1：地下城 -------
         allMaps[1] = new int[15][20];
@@ -417,9 +419,8 @@ class GamePanel extends JPanel implements ActionListener, KeyListener, MouseList
         for (int y = 0; y < 15; y++)
             for (int x = 0; x < 20; x++) {
                 boolean border = (x == 0 || y == 0 || x == 19 || y == 14);
-                boolean portalLeft = (x == 0 && y >= 7 && y <= 8);
-                boolean portalRight = (x == 19 && y >= 7 && y <= 8);
-                allMaps[2][y][x] = (border && !portalLeft && !portalRight) ? 1 : 0;
+                boolean portalTop = (y == 0 && x >= 9 && x <= 10);
+                allMaps[2][y][x] = (border && !portalTop) ? 1 : 0;
             }
         // 村莊建築/路障，NPC 站位保持可走
         for (int x = 3; x <= 5; x++) {
@@ -1201,43 +1202,39 @@ class GamePanel extends JPanel implements ActionListener, KeyListener, MouseList
         // 傳送門視覺效果
         g2d.setFont(new Font("Microsoft JhengHei", Font.BOLD, 11));
         if (mapIndex == 0) {
-            Color portalColor = new Color(255, 200, 50, 180);
-            g2d.setColor(portalColor);
-            // 右邊界，第7-8行
+            Color rightPortal = new Color(255, 200, 50, 180);
+            Color bottomPortal = new Color(80, 160, 255, 180);
+            g2d.setColor(rightPortal);
             g2d.fillRoundRect(19 * TILE_SIZE, 7 * TILE_SIZE, TILE_SIZE, 2 * TILE_SIZE, 10, 10);
-            g2d.setColor(portalColor.darker());
+            g2d.setColor(rightPortal.darker());
             g2d.drawString("→地下城", 19 * TILE_SIZE - 4, 7 * TILE_SIZE - 4);
+            g2d.setColor(bottomPortal);
+            g2d.fillRoundRect(9 * TILE_SIZE, 14 * TILE_SIZE, 2 * TILE_SIZE, TILE_SIZE, 10, 10);
+            g2d.setColor(bottomPortal.darker());
+            g2d.drawString("↓村莊", 9 * TILE_SIZE + 4, 14 * TILE_SIZE - 4);
         } else if (mapIndex == 1) {
             Color leftPortal = new Color(80, 160, 255, 180);
             Color rightPortal = new Color(220, 90, 70, 190);
-            // 左邊界，第7-8行
             g2d.setColor(leftPortal);
             g2d.fillRoundRect(0, 7 * TILE_SIZE, TILE_SIZE, 2 * TILE_SIZE, 10, 10);
             g2d.setColor(leftPortal.darker());
             g2d.drawString("←草原", 2, 7 * TILE_SIZE - 4);
-            // 右邊界，第7-8行
-            g2d.setColor(rightPortal);
-            g2d.fillRoundRect(19 * TILE_SIZE, 7 * TILE_SIZE, TILE_SIZE, 2 * TILE_SIZE, 10, 10);
-            g2d.setColor(rightPortal.darker());
-            g2d.drawString("→村莊", 19 * TILE_SIZE - 4, 7 * TILE_SIZE - 4);
-        } else if (mapIndex == VILLAGE_MAP_INDEX) {
-            Color leftPortal = new Color(80, 160, 255, 180);
-            Color rightPortal = new Color(220, 90, 70, 190);
-            g2d.setColor(leftPortal);
-            g2d.fillRoundRect(0, 7 * TILE_SIZE, TILE_SIZE, 2 * TILE_SIZE, 10, 10);
-            g2d.setColor(leftPortal.darker());
-            g2d.drawString("←地下城", 2, 7 * TILE_SIZE - 4);
             g2d.setColor(rightPortal);
             g2d.fillRoundRect(19 * TILE_SIZE, 7 * TILE_SIZE, TILE_SIZE, 2 * TILE_SIZE, 10, 10);
             g2d.setColor(rightPortal.darker());
             g2d.drawString("→魔王殿", 19 * TILE_SIZE - 6, 7 * TILE_SIZE - 4);
+        } else if (mapIndex == VILLAGE_MAP_INDEX) {
+            Color topPortal = new Color(80, 160, 255, 180);
+            g2d.setColor(topPortal);
+            g2d.fillRoundRect(9 * TILE_SIZE, 0, 2 * TILE_SIZE, TILE_SIZE, 10, 10);
+            g2d.setColor(topPortal.darker());
+            g2d.drawString("↑草原", 9 * TILE_SIZE + 4, TILE_SIZE + 12);
         } else {
             Color portalColor = new Color(220, 90, 70, 190);
-            // 左邊界，第7-8行
             g2d.setColor(portalColor);
             g2d.fillRoundRect(0, 7 * TILE_SIZE, TILE_SIZE, 2 * TILE_SIZE, 10, 10);
             g2d.setColor(portalColor.darker());
-            g2d.drawString("←村莊", 2, 7 * TILE_SIZE - 4);
+            g2d.drawString("←地下城", 2, 7 * TILE_SIZE - 4);
         }
 
         drawShopNpc(g2d);
@@ -1995,6 +1992,11 @@ class GamePanel extends JPanel implements ActionListener, KeyListener, MouseList
                     player.vx = 0;
                 if (!canY)
                     player.vy = 0;
+
+                if (checkPortal()) {
+                    repaint();
+                    return;
+                }
             }
             // 更新玩家走路動畫
             updatePlayerWalkAnimation();
@@ -3339,22 +3341,54 @@ class GamePanel extends JPanel implements ActionListener, KeyListener, MouseList
         return map[ty][tx] == 1;
     }
 
-    private void checkPortal() {
-        double cx = player.x + 20, cy = player.y + 20;
-        boolean inPortalRows = cy >= 7 * TILE_SIZE && cy <= 9 * TILE_SIZE;
-        if (mapIndex == 0 && inPortalRows && cx >= 19 * TILE_SIZE) {
-            switchMap(1, 1 * TILE_SIZE, 7 * TILE_SIZE + 10);
-        } else if (mapIndex == 1 && inPortalRows && cx <= TILE_SIZE) {
-            switchMap(0, 18 * TILE_SIZE, 7 * TILE_SIZE + 10);
-        } else if (mapIndex == 1 && inPortalRows && cx >= 19 * TILE_SIZE) {
-            switchMap(2, 1 * TILE_SIZE, 7 * TILE_SIZE + 10);
-        } else if (mapIndex == 2 && inPortalRows && cx <= TILE_SIZE) {
-            switchMap(1, 18 * TILE_SIZE, 7 * TILE_SIZE + 10);
-        } else if (mapIndex == 2 && inPortalRows && cx >= 19 * TILE_SIZE) {
-            switchMap(3, 1 * TILE_SIZE, 7 * TILE_SIZE + 10);
-        } else if (mapIndex == 3 && inPortalRows && cx <= TILE_SIZE) {
-            switchMap(2, 18 * TILE_SIZE, 7 * TILE_SIZE + 10);
+    private boolean checkPortal() {
+        int mapWidth = map[0].length;
+        int mapHeight = map.length;
+        int playerTileX = (int) ((player.x + TILE_SIZE / 2.0) / TILE_SIZE);
+        int playerTileY = (int) ((player.y + TILE_SIZE / 2.0) / TILE_SIZE);
+
+        double leftSafeX = TILE_SIZE;
+        double rightSafeX = (mapWidth - 2) * TILE_SIZE;
+        double topSafeY = TILE_SIZE;
+        double bottomSafeY = (mapHeight - 2) * TILE_SIZE;
+        double safeX = Math.max(leftSafeX, Math.min(player.x, rightSafeX));
+        double safeY = Math.max(topSafeY, Math.min(player.y, bottomSafeY));
+
+        if (mapIndex == 0) {
+            if (playerTileY == mapHeight - 1 && playerTileX >= 9 && playerTileX <= 10) {
+                teleportPlayer(2, safeX, topSafeY);
+                return true;
+            }
+            if (playerTileX == mapWidth - 1 && playerTileY >= 7 && playerTileY <= 8) {
+                teleportPlayer(1, leftSafeX, safeY);
+                return true;
+            }
+        } else if (mapIndex == 1) {
+            if (playerTileX == 0 && playerTileY >= 7 && playerTileY <= 8) {
+                teleportPlayer(0, rightSafeX, safeY);
+                return true;
+            }
+            if (playerTileX == mapWidth - 1 && playerTileY >= 7 && playerTileY <= 8) {
+                teleportPlayer(3, leftSafeX, safeY);
+                return true;
+            }
+        } else if (mapIndex == 2) {
+            if (playerTileY == 0 && playerTileX >= 9 && playerTileX <= 10) {
+                teleportPlayer(0, safeX, bottomSafeY);
+                return true;
+            }
+        } else if (mapIndex == 3) {
+            if (playerTileX == 0 && playerTileY >= 7 && playerTileY <= 8) {
+                teleportPlayer(1, rightSafeX, safeY);
+                return true;
+            }
         }
+
+        return false;
+    }
+
+    private void teleportPlayer(int newIdx, double spawnX, double spawnY) {
+        switchMap(newIdx, spawnX, spawnY);
     }
 
     private void switchMap(int newIdx, double spawnX, double spawnY) {
