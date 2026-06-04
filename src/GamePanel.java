@@ -39,6 +39,10 @@ class GamePanel extends JPanel implements ActionListener, KeyListener, MouseList
     final int TRAINER_NPC_TILE_X = 12;
     final int TRAINER_NPC_TILE_Y = 6;
     final double TRAINER_NPC_INTERACT_RANGE = 70.0;
+    final int CHIEF_NPC_MAP_INDEX = VILLAGE_MAP_INDEX;
+    final int CHIEF_NPC_TILE_X = 10;
+    final int CHIEF_NPC_TILE_Y = 5;
+    final double CHIEF_NPC_INTERACT_RANGE = 70.0;
 
     // multi-map support
     int mapIndex = 0;
@@ -384,6 +388,8 @@ class GamePanel extends JPanel implements ActionListener, KeyListener, MouseList
         allMaps[0][3][12] = 1;
         allMaps[0][10][3] = 1;
         allMaps[0][10][4] = 1;
+        allMaps[0][14][9] = 0;
+        allMaps[0][14][10] = 0;
 
         // ------- 地圖 1：地下城 -------
         allMaps[1] = new int[15][20];
@@ -416,9 +422,8 @@ class GamePanel extends JPanel implements ActionListener, KeyListener, MouseList
         for (int y = 0; y < 15; y++)
             for (int x = 0; x < 20; x++) {
                 boolean border = (x == 0 || y == 0 || x == 19 || y == 14);
-                boolean portalLeft = (x == 0 && y >= 7 && y <= 8);
-                boolean portalRight = (x == 19 && y >= 7 && y <= 8);
-                allMaps[2][y][x] = (border && !portalLeft && !portalRight) ? 1 : 0;
+                boolean portalTop = (y == 0 && x >= 9 && x <= 10);
+                allMaps[2][y][x] = (border && !portalTop) ? 1 : 0;
             }
         // 村莊建築/路障，NPC 站位保持可走
         for (int x = 3; x <= 5; x++) {
@@ -429,10 +434,11 @@ class GamePanel extends JPanel implements ActionListener, KeyListener, MouseList
         }
         allMaps[2][10][4] = 1;
         allMaps[2][10][15] = 1;
-        // 村莊 NPC 位置：商人、旅館與訓練師，保持站位格可通行並由繪圖/互動方法使用。
+        // 村莊 NPC 位置：商人、旅館、訓練師與村長，保持站位格可通行並由繪圖/互動方法使用。
         allMaps[SHOP_NPC_MAP_INDEX][SHOP_NPC_TILE_Y][SHOP_NPC_TILE_X] = 0;
         allMaps[INN_NPC_MAP_INDEX][INN_NPC_TILE_Y][INN_NPC_TILE_X] = 0;
         allMaps[TRAINER_NPC_MAP_INDEX][TRAINER_NPC_TILE_Y][TRAINER_NPC_TILE_X] = 0;
+        allMaps[CHIEF_NPC_MAP_INDEX][CHIEF_NPC_TILE_Y][CHIEF_NPC_TILE_X] = 0;
 
         // ------- 地圖 3：魔王殿 -------
         allMaps[3] = new int[15][20];
@@ -1199,48 +1205,45 @@ class GamePanel extends JPanel implements ActionListener, KeyListener, MouseList
         // 傳送門視覺效果
         g2d.setFont(new Font("Microsoft JhengHei", Font.BOLD, 11));
         if (mapIndex == 0) {
-            Color portalColor = new Color(255, 200, 50, 180);
-            g2d.setColor(portalColor);
-            // 右邊界，第7-8行
+            Color rightPortal = new Color(255, 200, 50, 180);
+            Color bottomPortal = new Color(80, 160, 255, 180);
+            g2d.setColor(rightPortal);
             g2d.fillRoundRect(19 * TILE_SIZE, 7 * TILE_SIZE, TILE_SIZE, 2 * TILE_SIZE, 10, 10);
-            g2d.setColor(portalColor.darker());
+            g2d.setColor(rightPortal.darker());
             g2d.drawString("→地下城", 19 * TILE_SIZE - 4, 7 * TILE_SIZE - 4);
+            g2d.setColor(bottomPortal);
+            g2d.fillRoundRect(9 * TILE_SIZE, 14 * TILE_SIZE, 2 * TILE_SIZE, TILE_SIZE, 10, 10);
+            g2d.setColor(bottomPortal.darker());
+            g2d.drawString("↓村莊", 9 * TILE_SIZE + 4, 14 * TILE_SIZE - 4);
         } else if (mapIndex == 1) {
             Color leftPortal = new Color(80, 160, 255, 180);
             Color rightPortal = new Color(220, 90, 70, 190);
-            // 左邊界，第7-8行
             g2d.setColor(leftPortal);
             g2d.fillRoundRect(0, 7 * TILE_SIZE, TILE_SIZE, 2 * TILE_SIZE, 10, 10);
             g2d.setColor(leftPortal.darker());
             g2d.drawString("←草原", 2, 7 * TILE_SIZE - 4);
-            // 右邊界，第7-8行
-            g2d.setColor(rightPortal);
-            g2d.fillRoundRect(19 * TILE_SIZE, 7 * TILE_SIZE, TILE_SIZE, 2 * TILE_SIZE, 10, 10);
-            g2d.setColor(rightPortal.darker());
-            g2d.drawString("→村莊", 19 * TILE_SIZE - 4, 7 * TILE_SIZE - 4);
-        } else if (mapIndex == VILLAGE_MAP_INDEX) {
-            Color leftPortal = new Color(80, 160, 255, 180);
-            Color rightPortal = new Color(220, 90, 70, 190);
-            g2d.setColor(leftPortal);
-            g2d.fillRoundRect(0, 7 * TILE_SIZE, TILE_SIZE, 2 * TILE_SIZE, 10, 10);
-            g2d.setColor(leftPortal.darker());
-            g2d.drawString("←地下城", 2, 7 * TILE_SIZE - 4);
             g2d.setColor(rightPortal);
             g2d.fillRoundRect(19 * TILE_SIZE, 7 * TILE_SIZE, TILE_SIZE, 2 * TILE_SIZE, 10, 10);
             g2d.setColor(rightPortal.darker());
             g2d.drawString("→魔王殿", 19 * TILE_SIZE - 6, 7 * TILE_SIZE - 4);
+        } else if (mapIndex == VILLAGE_MAP_INDEX) {
+            Color topPortal = new Color(80, 160, 255, 180);
+            g2d.setColor(topPortal);
+            g2d.fillRoundRect(9 * TILE_SIZE, 0, 2 * TILE_SIZE, TILE_SIZE, 10, 10);
+            g2d.setColor(topPortal.darker());
+            g2d.drawString("↑草原", 9 * TILE_SIZE + 4, TILE_SIZE + 12);
         } else {
             Color portalColor = new Color(220, 90, 70, 190);
-            // 左邊界，第7-8行
             g2d.setColor(portalColor);
             g2d.fillRoundRect(0, 7 * TILE_SIZE, TILE_SIZE, 2 * TILE_SIZE, 10, 10);
             g2d.setColor(portalColor.darker());
-            g2d.drawString("←村莊", 2, 7 * TILE_SIZE - 4);
+            g2d.drawString("←地下城", 2, 7 * TILE_SIZE - 4);
         }
 
         drawShopNpc(g2d);
         drawInnNpc(g2d);
         drawTrainerNpc(g2d);
+        drawChiefNpc(g2d);
 
         for (Enemy e : enemies) {
             if (e.shouldRenderOnMap()) {
@@ -2083,6 +2086,11 @@ class GamePanel extends JPanel implements ActionListener, KeyListener, MouseList
                     player.vx = 0;
                 if (!canY)
                     player.vy = 0;
+
+                if (checkPortal()) {
+                    repaint();
+                    return;
+                }
             }
             // 更新玩家走路動畫
             updatePlayerWalkAnimation();
@@ -2247,6 +2255,7 @@ class GamePanel extends JPanel implements ActionListener, KeyListener, MouseList
                                     originalBattleEnemies.clear();
                                     
                                     isZeroExpSettlement = false; // 重置為敵人被擊敗狀態
+                                    updateQuestKillProgress();
                                     // 經驗分配給全隊
                                     int totalExp = 60;  // 假設每個敵人60經驗
                                     levelsGained = player.gainExp(totalExp / 2);
@@ -2319,6 +2328,7 @@ class GamePanel extends JPanel implements ActionListener, KeyListener, MouseList
                                         originalBattleEnemies.clear();
                                         
                                         isZeroExpSettlement = false; // 重置為敵人被擊敗狀態
+                                        updateQuestKillProgress();
                                         int exp = 60;
                                         levelsGained = player.gainExp(exp / 2);
                                         for (int i = 0; i < companions.size(); i++) {
@@ -2865,6 +2875,17 @@ class GamePanel extends JPanel implements ActionListener, KeyListener, MouseList
                     } finally {
                         shopOpen = false;
                     }
+                } else if (!showMapMenu && isNearChiefNpc()) {
+                    player.vx = 0;
+                    player.vy = 0;
+                    mouseDown = false;
+                    keyDown = false;
+                    shopOpen = true;
+                    try {
+                        showChiefMenu();
+                    } finally {
+                        shopOpen = false;
+                    }
                 }
                 return;
             }
@@ -3232,6 +3253,25 @@ class GamePanel extends JPanel implements ActionListener, KeyListener, MouseList
                 <= TRAINER_NPC_INTERACT_RANGE;
     }
 
+    private double getChiefNpcCenterX() {
+        return CHIEF_NPC_TILE_X * TILE_SIZE + TILE_SIZE / 2.0;
+    }
+
+    private double getChiefNpcCenterY() {
+        return CHIEF_NPC_TILE_Y * TILE_SIZE + TILE_SIZE / 2.0;
+    }
+
+    private boolean isNearChiefNpc() {
+        if (state != 0 || mapIndex != CHIEF_NPC_MAP_INDEX) {
+            return false;
+        }
+
+        double playerCenterX = player.x + TILE_SIZE / 2.0;
+        double playerCenterY = player.y + TILE_SIZE / 2.0;
+        return Math.hypot(playerCenterX - getChiefNpcCenterX(), playerCenterY - getChiefNpcCenterY())
+                <= CHIEF_NPC_INTERACT_RANGE;
+    }
+
     private void drawShopNpc(Graphics2D g2d) {
         if (mapIndex != SHOP_NPC_MAP_INDEX) {
             return;
@@ -3343,6 +3383,31 @@ class GamePanel extends JPanel implements ActionListener, KeyListener, MouseList
         }
     }
 
+    private void drawChiefNpc(Graphics2D g2d) {
+        if (mapIndex != CHIEF_NPC_MAP_INDEX) {
+            return;
+        }
+
+        int npcX = CHIEF_NPC_TILE_X * TILE_SIZE;
+        int npcY = CHIEF_NPC_TILE_Y * TILE_SIZE;
+        g2d.setColor(new Color(92, 92, 92));
+        g2d.fillRoundRect(npcX + 8, npcY + 12, 24, 24, 8, 8);
+        g2d.setColor(new Color(232, 208, 170));
+        g2d.fillOval(npcX + 11, npcY + 4, 18, 18);
+        g2d.setColor(new Color(245, 245, 245));
+        g2d.fillArc(npcX + 9, npcY + 9, 22, 18, 180, 180);
+        g2d.setColor(Color.BLACK);
+        g2d.setFont(new Font("Microsoft JhengHei", Font.BOLD, 11));
+        g2d.drawString("村長", npcX + 5, npcY - 4);
+
+        if (isNearChiefNpc()) {
+            g2d.setColor(new Color(0, 0, 0, 160));
+            g2d.fillRoundRect(npcX - 24, npcY - 24, 96, 18, 8, 8);
+            g2d.setColor(new Color(255, 230, 120));
+            g2d.drawString("右鍵交談", npcX - 18, npcY - 10);
+        }
+    }
+
     private void updateMouseDirection(MouseEvent e) {
         int mx = e.getX() / TILE_SIZE;
         int my = e.getY() / TILE_SIZE;
@@ -3370,22 +3435,54 @@ class GamePanel extends JPanel implements ActionListener, KeyListener, MouseList
         return map[ty][tx] == 1;
     }
 
-    private void checkPortal() {
-        double cx = player.x + 20, cy = player.y + 20;
-        boolean inPortalRows = cy >= 7 * TILE_SIZE && cy <= 9 * TILE_SIZE;
-        if (mapIndex == 0 && inPortalRows && cx >= 19 * TILE_SIZE) {
-            switchMap(1, 1 * TILE_SIZE, 7 * TILE_SIZE + 10);
-        } else if (mapIndex == 1 && inPortalRows && cx <= TILE_SIZE) {
-            switchMap(0, 18 * TILE_SIZE, 7 * TILE_SIZE + 10);
-        } else if (mapIndex == 1 && inPortalRows && cx >= 19 * TILE_SIZE) {
-            switchMap(2, 1 * TILE_SIZE, 7 * TILE_SIZE + 10);
-        } else if (mapIndex == 2 && inPortalRows && cx <= TILE_SIZE) {
-            switchMap(1, 18 * TILE_SIZE, 7 * TILE_SIZE + 10);
-        } else if (mapIndex == 2 && inPortalRows && cx >= 19 * TILE_SIZE) {
-            switchMap(3, 1 * TILE_SIZE, 7 * TILE_SIZE + 10);
-        } else if (mapIndex == 3 && inPortalRows && cx <= TILE_SIZE) {
-            switchMap(2, 18 * TILE_SIZE, 7 * TILE_SIZE + 10);
+    private boolean checkPortal() {
+        int mapWidth = map[0].length;
+        int mapHeight = map.length;
+        int playerTileX = (int) ((player.x + TILE_SIZE / 2.0) / TILE_SIZE);
+        int playerTileY = (int) ((player.y + TILE_SIZE / 2.0) / TILE_SIZE);
+
+        double leftSafeX = TILE_SIZE;
+        double rightSafeX = (mapWidth - 2) * TILE_SIZE;
+        double topSafeY = TILE_SIZE;
+        double bottomSafeY = (mapHeight - 2) * TILE_SIZE;
+        double safeX = Math.max(leftSafeX, Math.min(player.x, rightSafeX));
+        double safeY = Math.max(topSafeY, Math.min(player.y, bottomSafeY));
+
+        if (mapIndex == 0) {
+            if (playerTileY == mapHeight - 1 && playerTileX >= 9 && playerTileX <= 10) {
+                teleportPlayer(2, safeX, topSafeY);
+                return true;
+            }
+            if (playerTileX == mapWidth - 1 && playerTileY >= 7 && playerTileY <= 8) {
+                teleportPlayer(1, leftSafeX, safeY);
+                return true;
+            }
+        } else if (mapIndex == 1) {
+            if (playerTileX == 0 && playerTileY >= 7 && playerTileY <= 8) {
+                teleportPlayer(0, rightSafeX, safeY);
+                return true;
+            }
+            if (playerTileX == mapWidth - 1 && playerTileY >= 7 && playerTileY <= 8) {
+                teleportPlayer(3, leftSafeX, safeY);
+                return true;
+            }
+        } else if (mapIndex == 2) {
+            if (playerTileY == 0 && playerTileX >= 9 && playerTileX <= 10) {
+                teleportPlayer(0, safeX, bottomSafeY);
+                return true;
+            }
+        } else if (mapIndex == 3) {
+            if (playerTileX == 0 && playerTileY >= 7 && playerTileY <= 8) {
+                teleportPlayer(1, rightSafeX, safeY);
+                return true;
+            }
         }
+
+        return false;
+    }
+
+    private void teleportPlayer(int newIdx, double spawnX, double spawnY) {
+        switchMap(newIdx, spawnX, spawnY);
     }
 
     private void switchMap(int newIdx, double spawnX, double spawnY) {
@@ -3673,6 +3770,66 @@ class GamePanel extends JPanel implements ActionListener, KeyListener, MouseList
         }
     }
 
+    public void showChiefMenu() {
+        if (player.activeQuestLevel == 0) {
+            Object[] options = {
+                    "低難度(任意討伐3怪)",
+                    "中難度(草原討伐5怪)",
+                    "高難度(地下城討伐8怪)",
+                    "離開"
+            };
+
+            int choice = JOptionPane.showOptionDialog(
+                    this,
+                    "村長：村莊需要你的協助，請選擇一項任務。",
+                    "村長",
+                    JOptionPane.DEFAULT_OPTION,
+                    JOptionPane.PLAIN_MESSAGE,
+                    null,
+                    options,
+                    options[0]);
+
+            if (choice >= 0 && choice <= 2) {
+                player.activeQuestLevel = choice + 1;
+                player.questKillProgress = 0;
+                JOptionPane.showMessageDialog(this, "村長：拜託你了，年輕人！");
+            }
+            return;
+        }
+
+        int target = 0;
+        if (player.activeQuestLevel == 1) {
+            target = 3;
+        } else if (player.activeQuestLevel == 2) {
+            target = 5;
+        } else if (player.activeQuestLevel == 3) {
+            target = 8;
+        }
+
+        if (player.questKillProgress < target) {
+            JOptionPane.showMessageDialog(
+                    this,
+                    "村長：你還沒完成任務喔！目前進度: "
+                            + player.questKillProgress + " / " + target);
+            return;
+        }
+
+        if (player.activeQuestLevel == 1) {
+            player.gold += 20;
+        } else if (player.activeQuestLevel == 2) {
+            player.gold += 50;
+            player.smallPotions += 1;
+        } else if (player.activeQuestLevel == 3) {
+            player.gold += 100;
+            player.largePotions += 1;
+        }
+
+        JOptionPane.showMessageDialog(this, "村長：太感謝你了！這是你的獎勵。");
+        player.activeQuestLevel = 0;
+        player.questKillProgress = 0;
+        repaint();
+    }
+
     public void showInnMenu() {
         int choice = JOptionPane.showConfirmDialog(
                 this,
@@ -3908,6 +4065,16 @@ class GamePanel extends JPanel implements ActionListener, KeyListener, MouseList
         }
     }
 
+    private void updateQuestKillProgress() {
+        if (player.activeQuestLevel == 1) {
+            player.questKillProgress++;
+        } else if (player.activeQuestLevel == 2 && mapIndex == 0) {
+            player.questKillProgress++;
+        } else if (player.activeQuestLevel == 3 && mapIndex == 1) {
+            player.questKillProgress++;
+        }
+    }
+
     private boolean tryEnterVictorySettlementIfNoEnemies() {
         if (!currentEnemies.isEmpty()) {
             return false;
@@ -3920,6 +4087,7 @@ class GamePanel extends JPanel implements ActionListener, KeyListener, MouseList
         originalBattleEnemies.clear();
 
         isZeroExpSettlement = false;
+        updateQuestKillProgress();
         int totalExp = 60;
         levelsGained = player.gainExp(totalExp / 2);
         for (int i = 0; i < companions.size(); i++) {
