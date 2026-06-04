@@ -241,14 +241,17 @@ class GamePanel extends JPanel implements ActionListener, KeyListener, MouseList
 
         statusPortraitImage = loadSprite("正面立繪.png");
         heroPortrait = statusPortraitImage;
-        moonPortrait = statusPortraitImage;
+        moonPortrait = loadSprite("正面立繪 月.png");
 
         // 戰鬥畫面先用正右，也可以之後改成依方向切換
         battlePlayerSprite = playerIdleRight;
 
         // 嘗試載入商人立繪（檔名放在 resources/shop_npc.png）
         shopNpcSprite = loadSprite("shop_npc.png");
-        innNpcSprite = loadSprite("inn_npc.png");
+        innNpcSprite = loadSprite("tile_0100.png");
+        if (innNpcSprite == null) {
+            innNpcSprite = loadSprite("inn_npc.png");
+        }
         trainerNpcSprite = loadSprite("trainer_npc.png");
     }
 
@@ -1515,14 +1518,15 @@ class GamePanel extends JPanel implements ActionListener, KeyListener, MouseList
                 int imageW = portraitW - portraitPadding * 2;
                 int imageH = portraitH - portraitPadding * 2 - nameAreaHeight;
 
-                if (statusPortraitImage != null) {
-                    double scale = Math.min(imageW / (double) statusPortraitImage.getWidth(),
-                            imageH / (double) statusPortraitImage.getHeight());
-                    int portraitDrawW = (int) Math.round(statusPortraitImage.getWidth() * scale);
-                    int portraitDrawH = (int) Math.round(statusPortraitImage.getHeight() * scale);
+                BufferedImage portraitImage = showingPlayer ? statusPortraitImage : moonPortrait;
+                if (portraitImage != null) {
+                    double scale = Math.min(imageW / (double) portraitImage.getWidth(),
+                            imageH / (double) portraitImage.getHeight());
+                    int portraitDrawW = (int) Math.round(portraitImage.getWidth() * scale);
+                    int portraitDrawH = (int) Math.round(portraitImage.getHeight() * scale);
                     int drawX = imageX + (imageW - portraitDrawW) / 2;
                     int drawY = imageY + (imageH - portraitDrawH) / 2;
-                    g2d.drawImage(statusPortraitImage, drawX, drawY, portraitDrawW, portraitDrawH, null);
+                    g2d.drawImage(portraitImage, drawX, drawY, portraitDrawW, portraitDrawH, null);
                 }
 
                 g2d.setColor(new Color(220, 230, 255));
@@ -1717,7 +1721,7 @@ class GamePanel extends JPanel implements ActionListener, KeyListener, MouseList
 
         g2d.setFont(new Font("Microsoft JhengHei", Font.PLAIN, 11));
         g2d.setColor(new Color(220, 230, 250));
-        g2d.drawString(playerActor ? "勇者裝備區" : "月的裝備區", x + 12, y + 36);
+        //g2d.drawString(playerActor ? "勇者裝備區" : "月的裝備區", x + 12, y + 36);
 
         g2d.setColor(new Color(190, 210, 240));
         g2d.setFont(new Font("Microsoft JhengHei", Font.PLAIN, 11));
@@ -1808,14 +1812,86 @@ class GamePanel extends JPanel implements ActionListener, KeyListener, MouseList
 
     private void openEquipmentSelectionDialog(boolean playerActor, int slotIndex) {
         EquipmentItem currentItem = getEquipmentItem(playerActor, slotIndex);
-        String currentName = getEquipmentDisplayName(playerActor, slotIndex);
-        String message = EquipmentCatalog.slotLabel(slotIndex) + " 目前為：" + (currentName.isEmpty() ? "空白" : currentName);
-        if (currentItem == null) {
-            message += "\n目前沒有其他可裝備的物品。";
-        } else {
-            message += "\n目前沒有其他可替換的裝備。";
+        java.util.List<EquipmentItem> ownedItems = getOwnedEquipmentForSlot(slotIndex);
+
+        if (ownedItems.isEmpty()) {
+            String currentName = getEquipmentDisplayName(playerActor, slotIndex);
+            String message = EquipmentCatalog.slotLabel(slotIndex) + " 目前為：" + (currentName.isEmpty() ? "空白" : currentName);
+            if (currentItem == null) {
+                message += "\n目前沒有可裝備的物品。";
+                JOptionPane.showMessageDialog(this, message, (playerActor ? player.name : companions.get(0).name) + " - " + EquipmentCatalog.slotLabel(slotIndex), JOptionPane.INFORMATION_MESSAGE);
+                return;
+            }
+
+            int selected = JOptionPane.showOptionDialog(
+                    this,
+                    message + "\n是否卸下目前裝備？",
+                    (playerActor ? player.name : companions.get(0).name) + " - " + EquipmentCatalog.slotLabel(slotIndex),
+                    JOptionPane.DEFAULT_OPTION,
+                    JOptionPane.PLAIN_MESSAGE,
+                    null,
+                    new Object[] { "卸下目前裝備", "取消" },
+                    "卸下目前裝備");
+            if (selected == 0) {
+                setEquipmentItem(playerActor, slotIndex, null);
+            }
+            return;
         }
-        JOptionPane.showMessageDialog(this, message, (playerActor ? player.name : companions.get(0).name) + " - " + EquipmentCatalog.slotLabel(slotIndex), JOptionPane.INFORMATION_MESSAGE);
+
+        java.util.List<Object> options = new java.util.ArrayList<>();
+        if (currentItem != null) {
+            options.add("卸下目前裝備");
+        }
+        options.addAll(ownedItems);
+        options.add("取消");
+
+        String actorName = playerActor ? player.name : companions.get(0).name;
+        int selected = JOptionPane.showOptionDialog(
+                this,
+                actorName + " 的 " + EquipmentCatalog.slotLabel(slotIndex) + " 裝備選單",
+                actorName + " - " + EquipmentCatalog.slotLabel(slotIndex),
+                JOptionPane.DEFAULT_OPTION,
+                JOptionPane.PLAIN_MESSAGE,
+                null,
+                options.toArray(),
+                options.get(0));
+
+        if (selected < 0 || selected >= options.size() - 1) {
+            return;
+        }
+
+        Object selectedOption = options.get(selected);
+        if (selectedOption instanceof String) {
+            setEquipmentItem(playerActor, slotIndex, null);
+        } else if (selectedOption instanceof EquipmentItem) {
+            setEquipmentItem(playerActor, slotIndex, (EquipmentItem) selectedOption);
+        }
+    }
+
+    private java.util.List<EquipmentItem> getOwnedEquipmentForSlot(int slotIndex) {
+        java.util.List<EquipmentItem> items = new java.util.ArrayList<>();
+        for (EquipmentItem item : player.equipmentInventory) {
+            if (item != null && matchesEquipmentSlot(item, slotIndex)) {
+                items.add(item);
+            }
+        }
+        return items;
+    }
+
+    private boolean matchesEquipmentSlot(EquipmentItem item, int slotIndex) {
+        switch (slotIndex) {
+            case 0:
+                return "weapon".equals(item.slotKey);
+            case 1:
+                return "clothes".equals(item.slotKey);
+            case 2:
+                return "shoes".equals(item.slotKey);
+            case 3:
+            case 4:
+                return "accessory".equals(item.slotKey);
+            default:
+                return false;
+        }
     }
 
     private EquipmentItem getEquipmentItem(boolean playerActor, int slotIndex) {
@@ -1860,7 +1936,16 @@ class GamePanel extends JPanel implements ActionListener, KeyListener, MouseList
     private void setEquipmentItem(boolean playerActor, int slotIndex, EquipmentItem newItem) {
         if (playerActor) {
             EquipmentItem oldItem = getEquipmentItem(true, slotIndex);
+            if (oldItem == newItem) {
+                return;
+            }
             applyEquipmentChange(player, oldItem, newItem);
+            if (oldItem != null) {
+                player.addEquipmentToInventory(oldItem);
+            }
+            if (newItem != null) {
+                player.removeEquipmentFromInventory(newItem);
+            }
             switch (slotIndex) {
                 case 0:
                     player.weapon = newItem;
@@ -1889,7 +1974,16 @@ class GamePanel extends JPanel implements ActionListener, KeyListener, MouseList
 
         Companion moon = companions.get(0);
         EquipmentItem oldItem = getEquipmentItem(false, slotIndex);
+        if (oldItem == newItem) {
+            return;
+        }
         applyEquipmentChange(moon, oldItem, newItem);
+        if (oldItem != null) {
+            player.addEquipmentToInventory(oldItem);
+        }
+        if (newItem != null) {
+            player.removeEquipmentFromInventory(newItem);
+        }
         switch (slotIndex) {
             case 0:
                 moon.weapon = newItem;
@@ -3171,7 +3265,7 @@ class GamePanel extends JPanel implements ActionListener, KeyListener, MouseList
             g2d.setColor(new Color(0, 0, 0, 160));
             g2d.fillRoundRect(npcX - 24, npcY - 24, 90, 18, 8, 8);
             g2d.setColor(new Color(255, 230, 120));
-            g2d.drawString("右鍵開商店", npcX - 18, npcY - 10);
+            g2d.drawString("對話", npcX - 18, npcY - 10);
         }
     }
 
@@ -3185,7 +3279,7 @@ class GamePanel extends JPanel implements ActionListener, KeyListener, MouseList
         if (innNpcSprite != null) {
             int imgW = innNpcSprite.getWidth();
             int imgH = innNpcSprite.getHeight();
-            double scale = Math.min((double) TILE_SIZE * 1.6 / imgW, (double) TILE_SIZE * 1.8 / imgH);
+            double scale = Math.min((double) TILE_SIZE * 1.05 / imgW, (double) TILE_SIZE * 1.2 / imgH);
             int drawW = (int) Math.round(imgW * scale);
             int drawH = (int) Math.round(imgH * scale);
             int drawX = (int) Math.round(getInnNpcCenterX() - drawW / 2.0);
@@ -3208,7 +3302,7 @@ class GamePanel extends JPanel implements ActionListener, KeyListener, MouseList
             g2d.setColor(new Color(0, 0, 0, 160));
             g2d.fillRoundRect(npcX - 24, npcY - 24, 90, 18, 8, 8);
             g2d.setColor(new Color(255, 230, 120));
-            g2d.drawString("右鍵住宿", npcX - 18, npcY - 10);
+            g2d.drawString("對話", npcX - 18, npcY - 10);
         }
     }
 
@@ -3245,7 +3339,7 @@ class GamePanel extends JPanel implements ActionListener, KeyListener, MouseList
             g2d.setColor(new Color(0, 0, 0, 160));
             g2d.fillRoundRect(npcX - 24, npcY - 24, 96, 18, 8, 8);
             g2d.setColor(new Color(255, 230, 120));
-            g2d.drawString("右鍵訓練", npcX - 18, npcY - 10);
+            g2d.drawString("對話", npcX - 18, npcY - 10);
         }
     }
 
@@ -3625,7 +3719,7 @@ class GamePanel extends JPanel implements ActionListener, KeyListener, MouseList
             return;
         }
 
-        Object[] actorOptions = { "勇者", "隨從" };
+        Object[] actorOptions = { "勇者", "月" };
         int actorChoice = JOptionPane.showOptionDialog(
                 this,
                 "請選擇要訓練的角色：",
@@ -4410,6 +4504,7 @@ class GamePanel extends JPanel implements ActionListener, KeyListener, MouseList
             state.playerShoes = player.shoes;
             state.playerAccessory1 = player.accessory1;
             state.playerAccessory2 = player.accessory2;
+            state.playerEquipmentInventory = new java.util.ArrayList<>(player.equipmentInventory);
             
             // 保存隊友狀態（假設只有一個隊友）
             if (!companions.isEmpty()) {
@@ -4513,6 +4608,12 @@ class GamePanel extends JPanel implements ActionListener, KeyListener, MouseList
             player.shoes = gameStateData.playerShoes;
             player.accessory1 = gameStateData.playerAccessory1;
             player.accessory2 = gameStateData.playerAccessory2;
+            player.equipmentInventory.clear();
+            if (gameStateData.playerEquipmentInventory != null) {
+                player.equipmentInventory.addAll(gameStateData.playerEquipmentInventory);
+            }
+            player.equipmentInventory.removeIf(item -> item == player.weapon || item == player.clothes
+                    || item == player.shoes || item == player.accessory1 || item == player.accessory2);
             
             // 恢復隊友狀態
             if (!companions.isEmpty()) {

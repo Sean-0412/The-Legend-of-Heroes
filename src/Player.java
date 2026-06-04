@@ -45,6 +45,7 @@ public class Player {
     EquipmentItem shoes;
     EquipmentItem accessory1;
     EquipmentItem accessory2;
+    List<EquipmentItem> equipmentInventory = new ArrayList<>();
 
     Player(double x, double y) {
         this.x = x;
@@ -94,26 +95,39 @@ public class Player {
         if (gold < cost) {
             return false;
         }
-        gold -= cost;
+
+        String slotKey;
         switch (statType) {
             case "patk":
-                patk += bonus;
-                break;
             case "matk":
-                matk += bonus;
+                slotKey = "weapon";
                 break;
             case "pdef":
-                pdef += bonus;
-                break;
             case "mdef":
-                mdef += bonus;
+                slotKey = "clothes";
                 break;
             default:
-                // 若 statType 不符合，回復金幣並視為失敗
-                gold += cost;
                 return false;
         }
+
+        gold -= cost;
+        equipmentInventory.add(new EquipmentItem(slotKey, equipName, "",
+                "patk".equals(statType) ? bonus : 0,
+                "pdef".equals(statType) ? bonus : 0,
+                "matk".equals(statType) ? bonus : 0,
+                "mdef".equals(statType) ? bonus : 0,
+                0));
         return true;
+    }
+
+    void addEquipmentToInventory(EquipmentItem item) {
+        if (item != null) {
+            equipmentInventory.add(item);
+        }
+    }
+
+    boolean removeEquipmentFromInventory(EquipmentItem item) {
+        return equipmentInventory.remove(item);
     }
 
     public boolean buyPotion(String potionType, int cost) {

@@ -6,7 +6,9 @@
 package src;
 
 import java.io.Serializable;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -36,6 +38,7 @@ public class GameState implements Serializable {
     public EquipmentItem playerShoes;
     public EquipmentItem playerAccessory1;
     public EquipmentItem playerAccessory2;
+    public List<EquipmentItem> playerEquipmentInventory;
     
     // 玩家背包物品
     public int smallPotions;
@@ -79,6 +82,7 @@ public class GameState implements Serializable {
     public GameState() {
         this.saveTime = System.currentTimeMillis();
         this.defeatedEnemies = new HashMap<>();
+        this.playerEquipmentInventory = new ArrayList<>();
     }
     
     /**
