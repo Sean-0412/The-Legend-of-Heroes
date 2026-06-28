@@ -8,12 +8,14 @@ package src;
 public class BattleUnit {
     int speed; // 戰鬥速度
     double at; // 行動值，越低越先行動
+    double atTieBreaker; // 開戰時抽取；AT 相同時用來固定行動先後
     boolean isPlayer; // true = 玩家或隊友，false = 敵人
     Object unit; // 引用玩家、隊友或敵人物件
 
     BattleUnit(int speed, boolean isPlayer, Object unit) {
         this.speed = speed;
         this.at = 50.0 / Math.max(1, speed);
+        this.atTieBreaker = Math.random();
         this.isPlayer = isPlayer;
         this.unit = unit;
     }

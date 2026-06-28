@@ -1,3 +1,8 @@
+/**
+ * EquipmentItem.java
+ * 說明：定義可序列化的裝備資料，包含欄位類型、名稱與各項能力加成。
+ */
+
 package src;
 
 import java.io.Serializable;

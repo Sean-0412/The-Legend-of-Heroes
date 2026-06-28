@@ -33,6 +33,9 @@ public class Player {
     int matk = 20; // 魔攻
     int mdef = 12; // 魔防
     int battleSpeed = 50; // 戰鬥速度（用於決定行動順序）
+    int groupGuardDefBonus = 0;
+    int groupGuardTurnsRemaining = 0;
+    boolean groupGuardSkipsCurrentTurn = false;
 
     public int smallPotions = 3;
     public int largePotions = 1;
@@ -64,6 +67,37 @@ public class Player {
 
     void heal(int amount) {
         hp = Math.min(hp + amount, maxHp);
+    }
+
+    int getBattlePdef() {
+        return pdef + (groupGuardTurnsRemaining > 0 ? groupGuardDefBonus : 0);
+    }
+
+    void applyGroupGuard(int defBonus, int turns, boolean appliedDuringCurrentTurn) {
+        groupGuardDefBonus = Math.max(groupGuardDefBonus, defBonus);
+        groupGuardTurnsRemaining = Math.max(0, turns);
+        groupGuardSkipsCurrentTurn = appliedDuringCurrentTurn;
+    }
+
+    void finishGroupGuardTurn() {
+        if (groupGuardTurnsRemaining <= 0) {
+            clearGroupGuard();
+            return;
+        }
+        if (groupGuardSkipsCurrentTurn) {
+            groupGuardSkipsCurrentTurn = false;
+            return;
+        }
+        groupGuardTurnsRemaining--;
+        if (groupGuardTurnsRemaining == 0) {
+            clearGroupGuard();
+        }
+    }
+
+    void clearGroupGuard() {
+        groupGuardDefBonus = 0;
+        groupGuardTurnsRemaining = 0;
+        groupGuardSkipsCurrentTurn = false;
     }
 
     /** 獲得經驗值，回傳升級次數 */

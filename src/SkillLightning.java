@@ -1,3 +1,8 @@
+/**
+ * SkillLightning.java
+ * 說明：實作「雷擊術」戰技，計算魔法傷害並處理敵人的生命值與 CP。
+ */
+
 package src;
 
 public class SkillLightning extends Skill {

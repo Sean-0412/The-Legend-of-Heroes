@@ -198,6 +198,8 @@ class GamePanel extends JPanel implements ActionListener, KeyListener, MouseList
 
     MapManager mapManager;
     BattleManager battleManager;
+    BattleOrderRenderer battleOrderRenderer;
+    NpcRenderer npcRenderer;
     
     // 玩家路徑追蹤系統（用於隊友跟隨）
     java.util.LinkedList<double[]> playerPathHistory = new java.util.LinkedList<>();
@@ -215,6 +217,8 @@ class GamePanel extends JPanel implements ActionListener, KeyListener, MouseList
 
         mapManager = new MapManager(this);
         battleManager = new BattleManager(this);
+        battleOrderRenderer = new BattleOrderRenderer(this, battleManager);
+        npcRenderer = new NpcRenderer(this);
 
         initMaps();
         player = new Player(2 * TILE_SIZE, 2 * TILE_SIZE);
@@ -744,7 +748,7 @@ class GamePanel extends JPanel implements ActionListener, KeyListener, MouseList
             // 繪製玩家
             boolean isPlayerActive = currentActor instanceof Player;
             double playerHealGlow = playerHealGlowTicks / (double) HEAL_GLOW_DURATION;
-            if (healingSkillAnimation && currentActor instanceof Player) {
+            if (healingSkillAnimation && player.hp > 0) {
                 drawHealingAura(g2d, actualPlayerX, actualPlayerY);
             }
             if (isPlayerDown) {
@@ -857,6 +861,9 @@ class GamePanel extends JPanel implements ActionListener, KeyListener, MouseList
                     g2d.setStroke(new BasicStroke(3));
                     g2d.drawOval(displayCx - 15, displayCy - 15, 30, 30);
                 } else {
+                    if (healingSkillAnimation) {
+                        drawHealingAura(g2d, displayCx, displayCy);
+                    }
                     g2d.setColor(blendToWhite(new Color(100, 200, 100), companionHealGlow));
                     g2d.fillOval(displayCx - 12, displayCy - 12, 24, 24);
                 }
@@ -2282,7 +2289,7 @@ class GamePanel extends JPanel implements ActionListener, KeyListener, MouseList
                     }
 
                     // 攻擊完成後依 AT 重新排序
-                    completeActionAndRefreshBattleOrder(selectedSkill != null ? 40 : 20);
+                    battleManager.completeActionAndRefreshBattleOrder(selectedSkill != null ? 40 : 20);
                 } else if ("companionAttack".equals(animAction)) {
                     // 隊友執行攻擊
                     if (currentActionIndex < battleOrder.size()) {
@@ -2352,7 +2359,7 @@ class GamePanel extends JPanel implements ActionListener, KeyListener, MouseList
                         }
                     }
                     // 隊友行動完成後依 AT 重新排序
-                    completeActionAndRefreshBattleOrder(20);
+                    battleManager.completeActionAndRefreshBattleOrder(20);
                 } else if ("enemyAttack".equals(animAction)) {
                     // 敵人執行攻擊，使用動畫開始時就決定的目標
                     Object target = getEnemyAttackTargetUnit();
@@ -2369,7 +2376,7 @@ class GamePanel extends JPanel implements ActionListener, KeyListener, MouseList
                     
                     if (target instanceof Player) {
                         Player p = (Player) target;
-                        dmg = rollDamage(enemyPatk, p.pdef);
+                        dmg = rollDamage(enemyPatk, p.getBattlePdef());
                         p.hp = Math.max(0, p.hp - dmg);
                         playerTakingDamage = true;
                         playerDamageTicks = DAMAGE_DISPLAY_DURATION;
@@ -2379,7 +2386,7 @@ class GamePanel extends JPanel implements ActionListener, KeyListener, MouseList
                         
                     } else if (target instanceof Companion) {
                         Companion c = (Companion) target;
-                        dmg = rollDamage(enemyPatk, c.pdef);
+                        dmg = rollDamage(enemyPatk, c.getBattlePdef());
                         c.hp = Math.max(0, c.hp - dmg);
                         
                         // 增加隊友 CP（被攻擊）
@@ -2407,14 +2414,14 @@ class GamePanel extends JPanel implements ActionListener, KeyListener, MouseList
                     }
 
                     // 敵人行動完成後依 AT 重新排序
-                    completeActionAndRefreshBattleOrder(20);
+                    battleManager.completeActionAndRefreshBattleOrder(20);
                 }
             }
             repaint();
         } else if (state == 1 && !animating && currentEnemies.size() > 0) {
             // 檢查當前行動者
-            removeInvisibleBattleUnits();
-            sortBattleOrderByAt();
+            battleManager.removeInvisibleBattleUnits();
+            battleManager.sortBattleOrderByAt();
             currentActionIndex = 0;
 
             if (currentActionIndex < battleOrder.size()) {
@@ -2424,14 +2431,14 @@ class GamePanel extends JPanel implements ActionListener, KeyListener, MouseList
                 if (currentUnit.unit instanceof Player || currentUnit.unit instanceof Companion) {
                     // 已倒下的角色跳過回合
                     if (currentUnit.unit instanceof Player && ((Player) currentUnit.unit).hp <= 0) {
-                        removeInvisibleBattleUnits();
-                        sortBattleOrderByAt();
+                        battleManager.removeInvisibleBattleUnits();
+                        battleManager.sortBattleOrderByAt();
                         currentActionIndex = 0;
                         return;
                     }
                     if (currentUnit.unit instanceof Companion && ((Companion) currentUnit.unit).hp <= 0) {
-                        removeInvisibleBattleUnits();
-                        sortBattleOrderByAt();
+                        battleManager.removeInvisibleBattleUnits();
+                        battleManager.sortBattleOrderByAt();
                         currentActionIndex = 0;
                         return;
                     }
@@ -2454,8 +2461,8 @@ class GamePanel extends JPanel implements ActionListener, KeyListener, MouseList
                     
                     if (!enemyStillFighting) {
                         // 敵人已被擊敗，跳過該敵人的回合
-                        removeInvisibleBattleUnits();
-                        sortBattleOrderByAt();
+                        battleManager.removeInvisibleBattleUnits();
+                        battleManager.sortBattleOrderByAt();
                         currentActionIndex = 0;
                         return;
                     }
@@ -2491,8 +2498,8 @@ class GamePanel extends JPanel implements ActionListener, KeyListener, MouseList
                             repaint();
                         } else {
                             // 還有其他敵人，依 AT 重新排序
-                            removeInvisibleBattleUnits();
-                            sortBattleOrderByAt();
+                            battleManager.removeInvisibleBattleUnits();
+                            battleManager.sortBattleOrderByAt();
                             currentActionIndex = 0;
                         }
                     } else {
@@ -2725,7 +2732,7 @@ class GamePanel extends JPanel implements ActionListener, KeyListener, MouseList
                     waitingForPlayerDecision = false;
                 } else {
                     // 逃跑失敗，推進到下一個行動者
-                    completeActionAndRefreshBattleOrder(30);
+                    battleManager.completeActionAndRefreshBattleOrder(30);
                 }
                 repaint();
                 return;
@@ -2990,7 +2997,7 @@ class GamePanel extends JPanel implements ActionListener, KeyListener, MouseList
                 updateMapMusic();
             } else {
                 // 逃跑失敗，推進到下一個行動者
-                completeActionAndRefreshBattleOrder(30);
+                battleManager.completeActionAndRefreshBattleOrder(30);
             }
             repaint();
             return;
@@ -3196,15 +3203,15 @@ class GamePanel extends JPanel implements ActionListener, KeyListener, MouseList
         }
     }
 
-    private double getShopNpcCenterX() {
+    double getShopNpcCenterX() {
         return SHOP_NPC_TILE_X * TILE_SIZE + TILE_SIZE / 2.0;
     }
 
-    private double getShopNpcCenterY() {
+    double getShopNpcCenterY() {
         return SHOP_NPC_TILE_Y * TILE_SIZE + TILE_SIZE / 2.0;
     }
 
-    private boolean isNearShopNpc() {
+    boolean isNearShopNpc() {
         if (state != 0 || mapIndex != SHOP_NPC_MAP_INDEX) {
             return false;
         }
@@ -3215,15 +3222,15 @@ class GamePanel extends JPanel implements ActionListener, KeyListener, MouseList
                 <= SHOP_NPC_INTERACT_RANGE;
     }
 
-    private double getInnNpcCenterX() {
+    double getInnNpcCenterX() {
         return INN_NPC_TILE_X * TILE_SIZE + TILE_SIZE / 2.0;
     }
 
-    private double getInnNpcCenterY() {
+    double getInnNpcCenterY() {
         return INN_NPC_TILE_Y * TILE_SIZE + TILE_SIZE / 2.0;
     }
 
-    private boolean isNearInnNpc() {
+    boolean isNearInnNpc() {
         if (state != 0 || mapIndex != INN_NPC_MAP_INDEX) {
             return false;
         }
@@ -3234,15 +3241,15 @@ class GamePanel extends JPanel implements ActionListener, KeyListener, MouseList
                 <= INN_NPC_INTERACT_RANGE;
     }
 
-    private double getTrainerNpcCenterX() {
+    double getTrainerNpcCenterX() {
         return TRAINER_NPC_TILE_X * TILE_SIZE + TILE_SIZE / 2.0;
     }
 
-    private double getTrainerNpcCenterY() {
+    double getTrainerNpcCenterY() {
         return TRAINER_NPC_TILE_Y * TILE_SIZE + TILE_SIZE / 2.0;
     }
 
-    private boolean isNearTrainerNpc() {
+    boolean isNearTrainerNpc() {
         if (state != 0 || mapIndex != TRAINER_NPC_MAP_INDEX) {
             return false;
         }
@@ -3253,15 +3260,15 @@ class GamePanel extends JPanel implements ActionListener, KeyListener, MouseList
                 <= TRAINER_NPC_INTERACT_RANGE;
     }
 
-    private double getChiefNpcCenterX() {
+    double getChiefNpcCenterX() {
         return CHIEF_NPC_TILE_X * TILE_SIZE + TILE_SIZE / 2.0;
     }
 
-    private double getChiefNpcCenterY() {
+    double getChiefNpcCenterY() {
         return CHIEF_NPC_TILE_Y * TILE_SIZE + TILE_SIZE / 2.0;
     }
 
-    private boolean isNearChiefNpc() {
+    boolean isNearChiefNpc() {
         if (state != 0 || mapIndex != CHIEF_NPC_MAP_INDEX) {
             return false;
         }
@@ -3273,139 +3280,19 @@ class GamePanel extends JPanel implements ActionListener, KeyListener, MouseList
     }
 
     private void drawShopNpc(Graphics2D g2d) {
-        if (mapIndex != SHOP_NPC_MAP_INDEX) {
-            return;
-        }
-
-        int npcX = SHOP_NPC_TILE_X * TILE_SIZE;
-        int npcY = SHOP_NPC_TILE_Y * TILE_SIZE;
-        if (shopNpcSprite != null) {
-            int imgW = shopNpcSprite.getWidth();
-            int imgH = shopNpcSprite.getHeight();
-            double scale = Math.min((double) TILE_SIZE * 1.6 / imgW, (double) TILE_SIZE * 1.8 / imgH);
-            int drawW = (int) Math.round(imgW * scale);
-            int drawH = (int) Math.round(imgH * scale);
-            int drawX = (int) Math.round(getShopNpcCenterX() - drawW / 2.0);
-            int drawY = (int) Math.round(getShopNpcCenterY() - drawH / 2.0);
-            g2d.drawImage(shopNpcSprite, drawX, drawY, drawW, drawH, null);
-            g2d.setColor(Color.BLACK);
-            g2d.setFont(new Font("Microsoft JhengHei", Font.BOLD, 12));
-            g2d.drawString("商人", npcX + 2, npcY - 6);
-        } else {
-            g2d.setColor(new Color(118, 74, 42));
-            g2d.fillRoundRect(npcX + 8, npcY + 12, 24, 24, 8, 8);
-            g2d.setColor(new Color(232, 208, 170));
-            g2d.fillOval(npcX + 11, npcY + 4, 18, 18);
-            g2d.setColor(Color.BLACK);
-            g2d.setFont(new Font("Microsoft JhengHei", Font.BOLD, 11));
-            g2d.drawString("商人", npcX + 5, npcY - 4);
-        }
-
-        if (isNearShopNpc()) {
-            g2d.setColor(new Color(0, 0, 0, 160));
-            g2d.fillRoundRect(npcX - 24, npcY - 24, 90, 18, 8, 8);
-            g2d.setColor(new Color(255, 230, 120));
-            g2d.drawString("對話", npcX - 18, npcY - 10);
-        }
+        npcRenderer.drawShop(g2d);
     }
 
     private void drawInnNpc(Graphics2D g2d) {
-        if (mapIndex != INN_NPC_MAP_INDEX) {
-            return;
-        }
-
-        int npcX = INN_NPC_TILE_X * TILE_SIZE;
-        int npcY = INN_NPC_TILE_Y * TILE_SIZE;
-        if (innNpcSprite != null) {
-            int imgW = innNpcSprite.getWidth();
-            int imgH = innNpcSprite.getHeight();
-            double scale = Math.min((double) TILE_SIZE * 1.05 / imgW, (double) TILE_SIZE * 1.2 / imgH);
-            int drawW = (int) Math.round(imgW * scale);
-            int drawH = (int) Math.round(imgH * scale);
-            int drawX = (int) Math.round(getInnNpcCenterX() - drawW / 2.0);
-            int drawY = (int) Math.round(getInnNpcCenterY() - drawH / 2.0);
-            g2d.drawImage(innNpcSprite, drawX, drawY, drawW, drawH, null);
-            g2d.setColor(Color.BLACK);
-            g2d.setFont(new Font("Microsoft JhengHei", Font.BOLD, 12));
-            g2d.drawString("旅館", npcX + 2, npcY - 6);
-        } else {
-            g2d.setColor(new Color(56, 112, 154));
-            g2d.fillRoundRect(npcX + 8, npcY + 12, 24, 24, 8, 8);
-            g2d.setColor(new Color(232, 208, 170));
-            g2d.fillOval(npcX + 11, npcY + 4, 18, 18);
-            g2d.setColor(Color.BLACK);
-            g2d.setFont(new Font("Microsoft JhengHei", Font.BOLD, 11));
-            g2d.drawString("旅館", npcX + 5, npcY - 4);
-        }
-
-        if (isNearInnNpc()) {
-            g2d.setColor(new Color(0, 0, 0, 160));
-            g2d.fillRoundRect(npcX - 24, npcY - 24, 90, 18, 8, 8);
-            g2d.setColor(new Color(255, 230, 120));
-            g2d.drawString("對話", npcX - 18, npcY - 10);
-        }
+        npcRenderer.drawInn(g2d);
     }
 
     private void drawTrainerNpc(Graphics2D g2d) {
-        if (mapIndex != TRAINER_NPC_MAP_INDEX) {
-            return;
-        }
-
-        int npcX = TRAINER_NPC_TILE_X * TILE_SIZE;
-        int npcY = TRAINER_NPC_TILE_Y * TILE_SIZE;
-        if (trainerNpcSprite != null) {
-            int imgW = trainerNpcSprite.getWidth();
-            int imgH = trainerNpcSprite.getHeight();
-            double scale = Math.min((double) TILE_SIZE * 1.6 / imgW, (double) TILE_SIZE * 1.8 / imgH);
-            int drawW = (int) Math.round(imgW * scale);
-            int drawH = (int) Math.round(imgH * scale);
-            int drawX = (int) Math.round(getTrainerNpcCenterX() - drawW / 2.0);
-            int drawY = (int) Math.round(getTrainerNpcCenterY() - drawH / 2.0);
-            g2d.drawImage(trainerNpcSprite, drawX, drawY, drawW, drawH, null);
-            g2d.setColor(Color.BLACK);
-            g2d.setFont(new Font("Microsoft JhengHei", Font.BOLD, 12));
-            g2d.drawString("訓練師", npcX - 4, npcY - 6);
-        } else {
-            g2d.setColor(new Color(120, 62, 144));
-            g2d.fillRoundRect(npcX + 8, npcY + 12, 24, 24, 8, 8);
-            g2d.setColor(new Color(232, 208, 170));
-            g2d.fillOval(npcX + 11, npcY + 4, 18, 18);
-            g2d.setColor(Color.BLACK);
-            g2d.setFont(new Font("Microsoft JhengHei", Font.BOLD, 11));
-            g2d.drawString("訓練師", npcX - 2, npcY - 4);
-        }
-
-        if (isNearTrainerNpc()) {
-            g2d.setColor(new Color(0, 0, 0, 160));
-            g2d.fillRoundRect(npcX - 24, npcY - 24, 96, 18, 8, 8);
-            g2d.setColor(new Color(255, 230, 120));
-            g2d.drawString("對話", npcX - 18, npcY - 10);
-        }
+        npcRenderer.drawTrainer(g2d);
     }
 
     private void drawChiefNpc(Graphics2D g2d) {
-        if (mapIndex != CHIEF_NPC_MAP_INDEX) {
-            return;
-        }
-
-        int npcX = CHIEF_NPC_TILE_X * TILE_SIZE;
-        int npcY = CHIEF_NPC_TILE_Y * TILE_SIZE;
-        g2d.setColor(new Color(92, 92, 92));
-        g2d.fillRoundRect(npcX + 8, npcY + 12, 24, 24, 8, 8);
-        g2d.setColor(new Color(232, 208, 170));
-        g2d.fillOval(npcX + 11, npcY + 4, 18, 18);
-        g2d.setColor(new Color(245, 245, 245));
-        g2d.fillArc(npcX + 9, npcY + 9, 22, 18, 180, 180);
-        g2d.setColor(Color.BLACK);
-        g2d.setFont(new Font("Microsoft JhengHei", Font.BOLD, 11));
-        g2d.drawString("村長", npcX + 5, npcY - 4);
-
-        if (isNearChiefNpc()) {
-            g2d.setColor(new Color(0, 0, 0, 160));
-            g2d.fillRoundRect(npcX - 24, npcY - 24, 96, 18, 8, 8);
-            g2d.setColor(new Color(255, 230, 120));
-            g2d.drawString("右鍵交談", npcX - 18, npcY - 10);
-        }
+        npcRenderer.drawChief(g2d);
     }
 
     private void updateMouseDirection(MouseEvent e) {
@@ -3640,7 +3527,7 @@ class GamePanel extends JPanel implements ActionListener, KeyListener, MouseList
         }
 
         // 每次新戰鬥都重建初始行動順序
-        initBattleOrder();
+        battleManager.initBattleOrder();
     }
 
     private int getEnemyBattleSlot(int enemyIndex) {
@@ -4165,8 +4052,16 @@ class GamePanel extends JPanel implements ActionListener, KeyListener, MouseList
         }
     }
 
+    void applyGroupGuardToAll(int defBonus, int turns) {
+        player.applyGroupGuard(defBonus, turns, currentActor == player);
+        for (Companion companion : companions) {
+            companion.applyGroupGuard(defBonus, turns, currentActor == companion);
+        }
+    }
+
     private boolean isHealingSkillAnimation() {
-        return animating && "playerAttack".equals(animAction) && selectedSkill instanceof SkillMoonlight;
+        return animating && "playerAttack".equals(animAction)
+                && (selectedSkill instanceof SkillMoonlight || selectedSkill instanceof SkillGroupGuard);
     }
 
     private Color blendToWhite(Color base, double ratio) {
@@ -4178,57 +4073,11 @@ class GamePanel extends JPanel implements ActionListener, KeyListener, MouseList
     }
 
     private void drawHealingAura(Graphics2D g2d, int centerX, int centerY) {
-        double progress = Math.max(0.0, Math.min(1.0, animTicks / (double) ANIM_DURATION));
-        int outerRadius = 26 + (int) Math.round(progress * 22);
-        int innerRadius = 16 + (int) Math.round(progress * 14);
-        int alphaOuter = (int) Math.round(160 * (1.0 - progress));
-        int alphaInner = (int) Math.round(220 * (1.0 - progress * 0.7));
-
-        Composite oldComposite = g2d.getComposite();
-        Stroke oldStroke = g2d.getStroke();
-
-        g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, Math.max(0f, Math.min(1f, alphaOuter / 255f))));
-        g2d.setColor(new Color(180, 240, 255));
-        g2d.setStroke(new BasicStroke(3f));
-        g2d.drawOval(centerX - outerRadius, centerY - outerRadius, outerRadius * 2, outerRadius * 2);
-
-        g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, Math.max(0f, Math.min(1f, alphaInner / 255f))));
-        g2d.setColor(new Color(230, 255, 255));
-        g2d.setStroke(new BasicStroke(2f));
-        g2d.drawOval(centerX - innerRadius, centerY - innerRadius, innerRadius * 2, innerRadius * 2);
-
-        g2d.setComposite(oldComposite);
-        g2d.setStroke(oldStroke);
+        BattleEffectRenderer.drawHealingAura(g2d, centerX, centerY, animTicks / (double) ANIM_DURATION);
     }
 
     private void drawMoonSliceSlash(Graphics2D g2d, int centerX, int centerY) {
-        double progress = Math.max(0.0, Math.min(1.0, animTicks / (double) ANIM_DURATION));
-        if (progress < 0.15 || progress > 0.75) {
-            return;
-        }
-
-        float alpha = (float) Math.max(0.0, 1.0 - Math.abs(progress - 0.45) / 0.30);
-        int sweep = (int) Math.round((progress - 0.15) / 0.60 * 20);
-
-        Composite oldComposite = g2d.getComposite();
-        Stroke oldStroke = g2d.getStroke();
-
-        g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, Math.max(0f, Math.min(1f, alpha))));
-
-        g2d.setColor(new Color(220, 245, 255));
-        g2d.setStroke(new BasicStroke(3f));
-        g2d.drawLine(centerX - 18 + sweep, centerY + 10, centerX + 10 + sweep, centerY - 18);
-
-        g2d.setColor(new Color(255, 255, 255));
-        g2d.setStroke(new BasicStroke(2f));
-        g2d.drawLine(centerX - 20 + sweep, centerY + 2, centerX + 2 + sweep, centerY - 20);
-
-        g2d.setColor(new Color(180, 220, 255));
-        g2d.setStroke(new BasicStroke(2f));
-        g2d.drawLine(centerX - 14 + sweep, centerY + 16, centerX + 14 + sweep, centerY - 12);
-
-        g2d.setComposite(oldComposite);
-        g2d.setStroke(oldStroke);
+        BattleEffectRenderer.drawMoonSliceSlash(g2d, centerX, centerY, animTicks / (double) ANIM_DURATION);
     }
 
     private void drawBossCutsceneDialog(Graphics2D g2d) {
@@ -4852,332 +4701,9 @@ class GamePanel extends JPanel implements ActionListener, KeyListener, MouseList
         return Math.max(1, (int) Math.round(base * factor));
     }
 
-    // 初始化戰鬥行動順序
-    private void initBattleOrder() {
-        battleOrder.clear();
-        currentActionIndex = 0;
-
-        // 添加玩家
-        BattleUnit playerUnit = new BattleUnit(player.battleSpeed, true, player);
-        battleOrder.add(playerUnit);
-
-        // 添加隊友
-        for (Companion c : companions) {
-            BattleUnit companionUnit = new BattleUnit(c.battleSpeed, true, c);
-            battleOrder.add(companionUnit);
-        }
-
-        // 添加當前戰鬥中的所有敵人
-        for (Enemy enemy : currentEnemies) {
-            BattleUnit enemyUnit = new BattleUnit(enemy.speed, false, enemy);
-            battleOrder.add(enemyUnit);
-        }
-
-        // 初始順序：SPD 越高越先手，等價於 AT 越低越先手
-        sortBattleOrderByAt();
-    }
-
-    private void sortBattleOrderByAt() {
-        battleOrder.sort((a, b) -> {
-            int cmp = Double.compare(a.at, b.at);
-            if (cmp != 0) {
-                return cmp;
-            }
-            cmp = Integer.compare(b.speed, a.speed);
-            if (cmp != 0) {
-                return cmp;
-            }
-            return Integer.compare(System.identityHashCode(a), System.identityHashCode(b));
-        });
-    }
-
-    private void removeInvisibleBattleUnits() {
-        for (int i = battleOrder.size() - 1; i >= 0; i--) {
-            if (!isBattleUnitVisible(battleOrder.get(i))) {
-                battleOrder.remove(i);
-            }
-        }
-    }
-
-    private BattleUnit findBattleUnit(Object unit) {
-        if (unit == null) {
-            return null;
-        }
-        for (BattleUnit battleUnit : battleOrder) {
-            if (battleUnit.unit == unit) {
-                return battleUnit;
-            }
-        }
-        return null;
-    }
-
-    private void completeActionAndRefreshBattleOrder(int actionCost) {
-        BattleUnit actedUnit = findBattleUnit(currentActor);
-        if (actedUnit != null) {
-            actedUnit.addActionCost(actionCost);
-        }
-
-        removeInvisibleBattleUnits();
-        sortBattleOrderByAt();
-        currentActionIndex = 0;
-        animating = false;
-        animTicks = 0;
-        animAction = "";
-        currentActor = null;
-        waitingForPlayerDecision = false;
-        currentAttackingEnemyIndex = -1;
-        enemyAttackTargetIsPlayer = true;
-        enemyAttackTargetCompanionIndex = -1;
-    }
-
-    private int getPendingActionCostForPreview() {
-        if ("enemyAttack".equals(animAction)) {
-            return 20;
-        }
-        if (selectedSkill != null) {
-            return 40;
-        }
-        if (!selectingPotionType.isEmpty()) {
-            return 10;
-        }
-        if ("attack".equals(selectingTargetMode)) {
-            return 20;
-        }
-        if ("skill".equals(selectingTargetMode)) {
-            return 40;
-        }
-        if ("potion".equals(selectingTargetMode)) {
-            return 10;
-        }
-        if (showingFleeMessage) {
-            return 30;
-        }
-        return 20;
-    }
-
-    private int getProjectedBattleOrderIndex(Object unit, int actionCost) {
-        if (unit == null || battleOrder.isEmpty()) {
-            return -1;
-        }
-
-        java.util.List<BattleUnit> projectedOrder = new java.util.ArrayList<>();
-        BattleUnit projectedUnit = null;
-        for (BattleUnit battleUnit : battleOrder) {
-            BattleUnit copy = new BattleUnit(battleUnit.speed, battleUnit.isPlayer, battleUnit.unit);
-            copy.at = battleUnit.at;
-            projectedOrder.add(copy);
-            if (battleUnit.unit == unit) {
-                projectedUnit = copy;
-            }
-        }
-
-        if (projectedUnit == null) {
-            return -1;
-        }
-
-        projectedUnit.addActionCost(actionCost);
-        projectedOrder.sort((a, b) -> {
-            int cmp = Double.compare(a.at, b.at);
-            if (cmp != 0) {
-                return cmp;
-            }
-            cmp = Integer.compare(b.speed, a.speed);
-            if (cmp != 0) {
-                return cmp;
-            }
-            return Integer.compare(System.identityHashCode(a), System.identityHashCode(b));
-        });
-
-        for (int i = 0; i < projectedOrder.size(); i++) {
-            if (projectedOrder.get(i).unit == unit) {
-                return i;
-            }
-        }
-
-        return -1;
-    }
-
-    private java.util.List<Integer> buildVisibleBattleOrderIndices() {
-        java.util.List<Integer> result = new java.util.ArrayList<>();
-        for (int i = 0; i < battleOrder.size(); i++) {
-            if (isBattleUnitVisible(battleOrder.get(i))) {
-                result.add(i);
-            }
-        }
-        return result;
-    }
-
-    private boolean isBattleOrderPreviewActive() {
-        if (currentActor == null) {
-            return false;
-        }
-        if (animating) {
-            return true;
-        }
-        if (!selectingTargetMode.isEmpty()) {
-            if ("attack".equals(selectingTargetMode)) {
-                return hoveredEnemyIndex >= 0 && hoveredEnemyIndex < currentEnemies.size();
-            }
-            if ("skill".equals(selectingTargetMode)) {
-                return hoveredEnemyIndex >= 0 && hoveredEnemyIndex < currentEnemies.size();
-            }
-            if ("potion".equals(selectingTargetMode)) {
-                return hoveredEnemyIndex >= 0 && hoveredEnemyIndex < currentEnemies.size();
-            }
-        }
-        return false;
-    }
-
-    private boolean isBattleUnitVisible(BattleUnit unit) {
-        if (unit == null || unit.unit == null) {
-            return false;
-        }
-
-        if (unit.unit instanceof Player) {
-            return player != null && player.hp > 0;
-        }
-
-        if (unit.unit instanceof Companion) {
-            return ((Companion) unit.unit).hp > 0;
-        }
-
-        if (unit.unit instanceof Enemy) {
-            Enemy enemy = (Enemy) unit.unit;
-            return enemy.hp > 0 && currentEnemies.contains(enemy);
-        }
-
-        return false;
-    }
-
     // 繪製行動順序長條
     private void drawBattleOrderBar(Graphics2D g2d) {
-        int barX = 20;
-        int barY = 100;
-        int unitWidth = 40;
-        int unitHeight = 30;
-        int gap = 5;
-        int maxDisplay = 8; // 顯示最多 8 個單位
-
-        // 標題
-        g2d.setColor(Color.WHITE);
-        g2d.setFont(new Font("Microsoft JhengHei", Font.BOLD, 12));
-        g2d.drawString("行動順序:", barX, barY - 5);
-
-        if (battleOrder.isEmpty()) {
-            return;
-        }
-
-        // 僅顯示仍可參與戰鬥的單位（倒下隱藏，復活重現）
-        java.util.List<Integer> visibleOrderIndices = buildVisibleBattleOrderIndices();
-
-        if (visibleOrderIndices.isEmpty()) {
-            return;
-        }
-
-        java.util.List<Integer> displayOrderIndices = visibleOrderIndices;
-
-        int displayCount = Math.min(displayOrderIndices.size(), maxDisplay);
-
-        // 繪製行動隊列
-        for (int i = 0; i < displayCount; i++) {
-            int orderIndex = displayOrderIndices.get(i);
-            BattleUnit unit = battleOrder.get(orderIndex);
-            int x = barX + i * (unitWidth + gap);
-            int y = barY;
-
-            // 決定填充顏色：根據單位類型選擇
-            Color fillColor;
-            if (unit.unit instanceof Player) {
-                fillColor = new Color(0, 0, 255, 150);  // 藍色：玩家
-            } else if (unit.unit instanceof Companion) {
-                fillColor = new Color(0, 255, 0, 150);  // 綠色：隊友
-            } else if (unit.unit instanceof Enemy) {
-                fillColor = new Color(255, 0, 0, 150);  // 紅色：敵人
-            } else {
-                fillColor = new Color(100, 100, 100, 100);
-            }
-
-            // 最左側即為現在行動者，加亮填充顏色
-            if (i == 0) {
-                // 從半透明變成完全不透明，且亮度提升
-                int r = Math.min(255, fillColor.getRed() + 80);
-                int g_val = Math.min(255, fillColor.getGreen() + 80);
-                int b = Math.min(255, fillColor.getBlue() + 80);
-                fillColor = new Color(r, g_val, b, 255);
-            }
-
-            // 繪製填充
-            g2d.setColor(fillColor);
-            g2d.fillRect(x, y, unitWidth, unitHeight);
-
-            // 繪製邊框
-            if (i == 0) {
-                // 當前行動者：金色粗邊框
-                g2d.setColor(new Color(255, 200, 0));
-                g2d.setStroke(new BasicStroke(3));
-            } else {
-                // 其他行動者：灰色細邊框
-                g2d.setColor(new Color(100, 100, 100));
-                g2d.setStroke(new BasicStroke(1));
-            }
-            g2d.drawRect(x, y, unitWidth, unitHeight);
-
-            // 繪製標籤
-            g2d.setStroke(new BasicStroke(1)); // 重置 stroke
-            g2d.setColor(Color.WHITE);
-            g2d.setFont(new Font("Microsoft JhengHei", Font.BOLD, 12));
-            String label = "?";
-            if (unit.unit instanceof Player) {
-                label = "勇者";
-            } else if (unit.unit instanceof Companion) {
-                label = ((Companion) unit.unit).name;
-            } else if (unit.unit instanceof Enemy) {
-                label = "敵人";
-            }
-            FontMetrics fm = g2d.getFontMetrics();
-            int textX = x + (unitWidth - fm.stringWidth(label)) / 2;
-            int textY = y + unitHeight / 2 + fm.getAscent() / 2;
-            g2d.drawString(label, textX, textY);
-        }
-
-        // 預覽時不重疊整列，只在預測位置畫目前角色的 ghost
-        if (isBattleOrderPreviewActive()) {
-            int previewIndex = getProjectedBattleOrderIndex(currentActor, getPendingActionCostForPreview());
-            if (previewIndex >= 0 && previewIndex < maxDisplay) {
-                BattleUnit currentActorUnit = findBattleUnit(currentActor);
-                if (currentActorUnit != null && isBattleUnitVisible(currentActorUnit)) {
-                    int previewX = barX + previewIndex * (unitWidth + gap);
-                    int previewY = barY - unitHeight - 8;
-
-                    Color previewColor;
-                    String previewLabel;
-                    if (currentActorUnit.unit instanceof Player) {
-                        previewColor = new Color(0, 0, 255, 110);
-                        previewLabel = "勇者";
-                    } else if (currentActorUnit.unit instanceof Enemy) {
-                        previewColor = new Color(255, 0, 0, 110);
-                        previewLabel = "敵人";
-                    } else {
-                        previewColor = new Color(0, 255, 0, 110);
-                        previewLabel = ((Companion) currentActorUnit.unit).name;
-                    }
-
-                    g2d.setColor(previewColor);
-                    g2d.fillRect(previewX, previewY, unitWidth, unitHeight);
-                    g2d.setColor(new Color(255, 215, 120));
-                    g2d.setStroke(new BasicStroke(2));
-                    g2d.drawRect(previewX, previewY, unitWidth, unitHeight);
-
-                    g2d.setStroke(new BasicStroke(1));
-                    g2d.setColor(Color.WHITE);
-                    g2d.setFont(new Font("Microsoft JhengHei", Font.BOLD, 12));
-                    FontMetrics previewFm = g2d.getFontMetrics();
-                    int previewTextX = previewX + (unitWidth - previewFm.stringWidth(previewLabel)) / 2;
-                    int previewTextY = previewY + unitHeight / 2 + previewFm.getAscent() / 2;
-                    g2d.drawString(previewLabel, previewTextX, previewTextY);
-                }
-            }
-        }
+        battleOrderRenderer.draw(g2d);
     }
 
     // 繪製角色面板（用於戰鬥下方UI）
@@ -5350,7 +4876,7 @@ class GamePanel extends JPanel implements ActionListener, KeyListener, MouseList
         }
         
         // 用藥完成後依 AT 重新排序
-        completeActionAndRefreshBattleOrder(10);
+        battleManager.completeActionAndRefreshBattleOrder(10);
         selectingTargetMode = "";
         selectingPotionType = "";
         repaint();

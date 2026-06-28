@@ -1,3 +1,8 @@
+/**
+ * EquipmentCatalog.java
+ * 說明：集中管理各裝備欄位的預設名稱、可選裝備與查詢方法。
+ */
+
 package src;
 
 final class EquipmentCatalog {

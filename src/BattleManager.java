@@ -225,14 +225,14 @@ class BattleManager {
 
                     if (target instanceof Player) {
                         Player p = (Player) target;
-                        dmg = rollDamage(enemyPatk, p.pdef);
+                        dmg = rollDamage(enemyPatk, p.getBattlePdef());
                         p.hp = Math.max(0, p.hp - dmg);
                         game.playerTakingDamage = true;
                         game.playerDamageTicks = game.DAMAGE_DISPLAY_DURATION;
                         p.cp = Math.min(p.cp + 5, p.maxCp);
                     } else if (target instanceof Companion) {
                         Companion c = (Companion) target;
-                        dmg = rollDamage(enemyPatk, c.pdef);
+                        dmg = rollDamage(enemyPatk, c.getBattlePdef());
                         c.hp = Math.max(0, c.hp - dmg);
                         c.cp = Math.min(c.cp + 5, c.maxCp);
 
@@ -606,7 +606,8 @@ class BattleManager {
     }
 
     boolean isHealingSkillAnimation() {
-        return game.animating && "playerAttack".equals(game.animAction) && game.selectedSkill instanceof SkillMoonlight;
+        return game.animating && "playerAttack".equals(game.animAction)
+                && (game.selectedSkill instanceof SkillMoonlight || game.selectedSkill instanceof SkillGroupGuard);
     }
 
     void handlePartyDefeatReturnToMainMenu() {
@@ -655,6 +656,11 @@ class BattleManager {
         game.battleOrder.clear();
         game.currentActionIndex = 0;
 
+        game.player.clearGroupGuard();
+        for (Companion companion : game.companions) {
+            companion.clearGroupGuard();
+        }
+
         BattleUnit playerUnit = new BattleUnit(game.player.battleSpeed, true, game.player);
         game.battleOrder.add(playerUnit);
 
@@ -672,17 +678,26 @@ class BattleManager {
     }
 
     void sortBattleOrderByAt() {
-        game.battleOrder.sort((a, b) -> {
-            int cmp = Double.compare(a.at, b.at);
-            if (cmp != 0) {
-                return cmp;
-            }
-            cmp = Integer.compare(b.speed, a.speed);
-            if (cmp != 0) {
-                return cmp;
-            }
-            return Integer.compare(System.identityHashCode(a), System.identityHashCode(b));
-        });
+        game.battleOrder.sort(this::compareBattleUnits);
+    }
+
+    private int compareBattleUnits(BattleUnit a, BattleUnit b) {
+        int cmp = Double.compare(a.at, b.at);
+        if (cmp != 0) {
+            return cmp;
+        }
+        cmp = Double.compare(a.atTieBreaker, b.atTieBreaker);
+        if (cmp != 0) {
+            return cmp;
+        }
+
+        cmp = Integer.compare(b.speed, a.speed);
+        if (cmp != 0) {
+            return cmp;
+        }
+
+        // Random doubles almost never collide, but keep the comparator total.
+        return Integer.compare(System.identityHashCode(a.unit), System.identityHashCode(b.unit));
     }
 
     void removeInvisibleBattleUnits() {
@@ -709,6 +724,12 @@ class BattleManager {
         BattleUnit actedUnit = findBattleUnit(game.currentActor);
         if (actedUnit != null) {
             actedUnit.addActionCost(actionCost);
+        }
+
+        if (game.currentActor instanceof Player) {
+            ((Player) game.currentActor).finishGroupGuardTurn();
+        } else if (game.currentActor instanceof Companion) {
+            ((Companion) game.currentActor).finishGroupGuardTurn();
         }
 
         removeInvisibleBattleUnits();
@@ -759,6 +780,7 @@ class BattleManager {
         for (BattleUnit battleUnit : game.battleOrder) {
             BattleUnit copy = new BattleUnit(battleUnit.speed, battleUnit.isPlayer, battleUnit.unit);
             copy.at = battleUnit.at;
+            copy.atTieBreaker = battleUnit.atTieBreaker;
             projectedOrder.add(copy);
             if (battleUnit.unit == unit) {
                 projectedUnit = copy;
@@ -770,17 +792,7 @@ class BattleManager {
         }
 
         projectedUnit.addActionCost(actionCost);
-        projectedOrder.sort((a, b) -> {
-            int cmp = Double.compare(a.at, b.at);
-            if (cmp != 0) {
-                return cmp;
-            }
-            cmp = Integer.compare(b.speed, a.speed);
-            if (cmp != 0) {
-                return cmp;
-            }
-            return Integer.compare(System.identityHashCode(a), System.identityHashCode(b));
-        });
+        projectedOrder.sort(this::compareBattleUnits);
 
         for (int i = 0; i < projectedOrder.size(); i++) {
             if (projectedOrder.get(i).unit == unit) {
