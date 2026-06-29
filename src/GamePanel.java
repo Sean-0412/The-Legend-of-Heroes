@@ -481,25 +481,7 @@ class GamePanel extends JPanel implements ActionListener, KeyListener, MouseList
     }
 
     private java.util.List<Enemy> spawnEnemiesForMap(int idx) {
-        java.util.List<Enemy> list = new java.util.ArrayList<>();
-        if (idx == 0) {
-            list.add(new Enemy(5, 3));
-            list.add(new Enemy(7, 7));
-        } else if (idx == 1) {
-            list.add(new Enemy(10, 4));
-            list.add(new Enemy(15, 8));
-            list.add(new Enemy(12, 11));
-        } else if (idx == 3) {
-            if (!bossDefeated) {
-                Enemy boss = new Enemy(10, 7, "魔王", 12, 520, 70, 24, 20, 320, 28, true);
-                boss.moveSpeed = 1.2;
-                boss.roamRadius = 3 * 40;
-                boss.detectRange = 6 * 40;
-                boss.chaseLoseRange = 8 * 40;
-                list.add(boss);
-            }
-        }
-        return list;
+        return EnemyFactory.spawnForMap(idx, bossDefeated);
     }
 
     @Override
@@ -913,16 +895,7 @@ class GamePanel extends JPanel implements ActionListener, KeyListener, MouseList
                     }
                 }
                 
-                if (enemy.isBoss) {
-                    g2d.setColor(new Color(150, 40, 30));
-                    g2d.fillOval(actualEnemyX - 16, actualEnemyY - 16, 32, 32);
-                    g2d.setColor(new Color(240, 200, 120));
-                    g2d.setStroke(new BasicStroke(2f));
-                    g2d.drawOval(actualEnemyX - 16, actualEnemyY - 16, 32, 32);
-                } else {
-                    g2d.setColor(Color.RED);
-                    g2d.fillOval(actualEnemyX - 12, actualEnemyY - 12, 24, 24);
-                }
+                EnemyRenderer.draw(g2d, enemy, actualEnemyX, actualEnemyY);
 
                 if (moonSliceAnimation) {
                     drawMoonSliceSlash(g2d, actualEnemyX, actualEnemyY);
@@ -1254,16 +1227,9 @@ class GamePanel extends JPanel implements ActionListener, KeyListener, MouseList
 
         for (Enemy e : enemies) {
             if (e.shouldRenderOnMap()) {
-                if (e.isBoss) {
-                    g2d.setColor(new Color(150, 40, 30));
-                    g2d.fillOval((int) e.x + 4, (int) e.y + 4, 32, 32);
-                    g2d.setColor(new Color(240, 200, 120));
-                    g2d.setStroke(new BasicStroke(2f));
-                    g2d.drawOval((int) e.x + 4, (int) e.y + 4, 32, 32);
-                } else {
-                    g2d.setColor(Color.RED);
-                    g2d.fillOval((int) e.x + 8, (int) e.y + 8, 24, 24);
-                }
+                EnemyRenderer.draw(g2d, e,
+                        (int) Math.round(e.x) + TILE_SIZE / 2,
+                        (int) Math.round(e.y) + TILE_SIZE / 2);
             }
         }
         // 顯示隊友
@@ -2369,14 +2335,14 @@ class GamePanel extends JPanel implements ActionListener, KeyListener, MouseList
                     }
 
                     int dmg = 0;
-                    int enemyPatk = 36;  // 預設敵人物攻
-                    if (!currentEnemies.isEmpty()) {
-                        enemyPatk = currentEnemies.get(0).patk;
-                    }
+                    Enemy attackingEnemy = currentActor instanceof Enemy ? (Enemy) currentActor : null;
+                    int enemyAttack = attackingEnemy != null ? attackingEnemy.getAttackPower() : 36;
                     
                     if (target instanceof Player) {
                         Player p = (Player) target;
-                        dmg = rollDamage(enemyPatk, p.getBattlePdef());
+                        int defense = attackingEnemy != null
+                                ? attackingEnemy.getTargetDefense(p) : p.getBattlePdef();
+                        dmg = rollDamage(enemyAttack, defense);
                         p.hp = Math.max(0, p.hp - dmg);
                         playerTakingDamage = true;
                         playerDamageTicks = DAMAGE_DISPLAY_DURATION;
@@ -2386,7 +2352,9 @@ class GamePanel extends JPanel implements ActionListener, KeyListener, MouseList
                         
                     } else if (target instanceof Companion) {
                         Companion c = (Companion) target;
-                        dmg = rollDamage(enemyPatk, c.getBattlePdef());
+                        int defense = attackingEnemy != null
+                                ? attackingEnemy.getTargetDefense(c) : c.getBattlePdef();
+                        dmg = rollDamage(enemyAttack, defense);
                         c.hp = Math.max(0, c.hp - dmg);
                         
                         // 增加隊友 CP（被攻擊）
@@ -3520,7 +3488,8 @@ class GamePanel extends JPanel implements ActionListener, KeyListener, MouseList
             int additionalEnemyCount = (int)(Math.random() * 3);  // 0-2 個額外敵人
             for (int i = 0; i < additionalEnemyCount; i++) {
                 // 隨機生成虛擬敵人，不涉及地圖敵人
-                Enemy virtualEnemy = new Enemy((int)(Math.random() * 15), (int)(Math.random() * 10));
+                Enemy virtualEnemy = EnemyFactory.createRandomForMap(
+                        mapIndex, (int) (Math.random() * 15), (int) (Math.random() * 10));
                 currentEnemies.add(virtualEnemy);
                 enemyBattleSlots.add(enemyBattleSlots.size());
             }
@@ -4235,7 +4204,7 @@ class GamePanel extends JPanel implements ActionListener, KeyListener, MouseList
     private void playOneshotMusic(String fileName) {
         stopCurrentMusic();
         
-        File musicFile = new File("resources" + File.separator + fileName);
+        File musicFile = MusicFileLocator.find(fileName);
         System.out.println("嘗試播放結算音樂: " + fileName);
         System.out.println("檔案存在: " + musicFile.exists());
         System.out.println("檔案路徑: " + musicFile.getAbsolutePath());
@@ -4265,7 +4234,7 @@ class GamePanel extends JPanel implements ActionListener, KeyListener, MouseList
 
         stopCurrentMusic();
 
-        File musicFile = new File("resources" + File.separator + fileName);
+        File musicFile = MusicFileLocator.find(fileName);
         if (!musicFile.exists()) {
             System.err.println("找不到地圖音樂檔案: " + fileName);
             return;

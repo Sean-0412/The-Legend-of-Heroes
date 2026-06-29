@@ -68,16 +68,7 @@ class MapManager {
     }
 
     List<Enemy> spawnEnemiesForMap(int idx) {
-        List<Enemy> list = new ArrayList<>();
-        if (idx == 0) {
-            list.add(new Enemy(5, 3));
-            list.add(new Enemy(7, 7));
-        } else {
-            list.add(new Enemy(10, 4));
-            list.add(new Enemy(15, 8));
-            list.add(new Enemy(12, 11));
-        }
-        return list;
+        return EnemyFactory.spawnForMap(idx, game.bossDefeated);
     }
 
     boolean hitWall(double px, double py) {

@@ -60,8 +60,9 @@ class MapRenderer {
 
         for (Enemy e : game.enemies) {
             if (e.shouldRenderOnMap()) {
-                g2d.setColor(Color.RED);
-                g2d.fillOval((int) e.x + 8, (int) e.y + 8, 24, 24);
+                EnemyRenderer.draw(g2d, e,
+                        (int) Math.round(e.x) + game.TILE_SIZE / 2,
+                        (int) Math.round(e.y) + game.TILE_SIZE / 2);
             }
         }
 

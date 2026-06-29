@@ -5,6 +5,8 @@
 
 package src;
 
+import java.awt.Color;
+
 public class Enemy {
     double x, y; // pixel position
     String name = "敵人";
@@ -15,11 +17,17 @@ public class Enemy {
     int maxCp = 200;
     int cp = 0;
     int patk = 36; // 物攻
+    int matk = 36; // 魔攻
     int pdef = 12; // 物防
     int mdef = 12; // 魔防
+    boolean usesMagicAttack = false;
     int expReward = 60;
     int speed = 35; // 戰鬥速度（用於決定行動順序）
     boolean defeated = false;
+    Color bodyColor = Color.RED;
+    int displaySize = 24;
+    EnemyKind kind = EnemyKind.GENERIC;
+    double animationPhaseOffset = Math.random() * Math.PI * 2;
 
     // 玩家逃跑成功後的戰鬥鎖（閃爍期）
     long battleLockUntilMs = 0;
@@ -56,6 +64,7 @@ public class Enemy {
         this.maxHp = maxHp;
         this.hp = maxHp;
         this.patk = patk;
+        this.matk = patk;
         this.pdef = pdef;
         this.mdef = mdef;
         this.expReward = expReward;
@@ -77,10 +86,16 @@ public class Enemy {
         this.maxCp = other.maxCp;
         this.cp = 0;
         this.patk = other.patk;
+        this.matk = other.matk;
         this.pdef = other.pdef;
         this.mdef = other.mdef;
+        this.usesMagicAttack = other.usesMagicAttack;
         this.expReward = other.expReward;
         this.speed = other.speed;
+        this.bodyColor = other.bodyColor;
+        this.displaySize = other.displaySize;
+        this.kind = other.kind;
+        this.animationPhaseOffset = other.animationPhaseOffset;
         this.moveSpeed = other.moveSpeed;
         this.roamRadius = other.roamRadius;
         this.detectRange = other.detectRange;
@@ -108,6 +123,18 @@ public class Enemy {
             return ((System.currentTimeMillis() / 150) % 2) == 0;
         }
         return true;
+    }
+
+    int getAttackPower() {
+        return usesMagicAttack ? matk : patk;
+    }
+
+    int getTargetDefense(Player target) {
+        return usesMagicAttack ? target.mdef : target.getBattlePdef();
+    }
+
+    int getTargetDefense(Companion target) {
+        return usesMagicAttack ? target.mdef : target.getBattlePdef();
     }
 
     void fleeAndHideUntilRefresh() {

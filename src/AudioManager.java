@@ -40,7 +40,7 @@ class AudioManager {
     void playOneshotMusic(String fileName) {
         stopCurrentMusic();
 
-        File musicFile = new File("resources" + File.separator + fileName);
+        File musicFile = MusicFileLocator.find(fileName);
         System.out.println("嘗試播放結算音樂: " + fileName);
         System.out.println("檔案存在: " + musicFile.exists());
         System.out.println("檔案路徑: " + musicFile.getAbsolutePath());
@@ -70,7 +70,7 @@ class AudioManager {
 
         stopCurrentMusic();
 
-        File musicFile = new File("resources" + File.separator + fileName);
+        File musicFile = MusicFileLocator.find(fileName);
         if (!musicFile.exists()) {
             System.err.println("找不到地圖音樂檔案: " + fileName);
             return;

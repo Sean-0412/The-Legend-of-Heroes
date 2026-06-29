@@ -218,21 +218,23 @@ class BattleManager {
                     }
 
                     int dmg = 0;
-                    int enemyPatk = 36;
-                    if (!game.currentEnemies.isEmpty()) {
-                        enemyPatk = game.currentEnemies.get(0).patk;
-                    }
+                    Enemy attackingEnemy = game.currentActor instanceof Enemy ? (Enemy) game.currentActor : null;
+                    int enemyAttack = attackingEnemy != null ? attackingEnemy.getAttackPower() : 36;
 
                     if (target instanceof Player) {
                         Player p = (Player) target;
-                        dmg = rollDamage(enemyPatk, p.getBattlePdef());
+                        int defense = attackingEnemy != null
+                                ? attackingEnemy.getTargetDefense(p) : p.getBattlePdef();
+                        dmg = rollDamage(enemyAttack, defense);
                         p.hp = Math.max(0, p.hp - dmg);
                         game.playerTakingDamage = true;
                         game.playerDamageTicks = game.DAMAGE_DISPLAY_DURATION;
                         p.cp = Math.min(p.cp + 5, p.maxCp);
                     } else if (target instanceof Companion) {
                         Companion c = (Companion) target;
-                        dmg = rollDamage(enemyPatk, c.getBattlePdef());
+                        int defense = attackingEnemy != null
+                                ? attackingEnemy.getTargetDefense(c) : c.getBattlePdef();
+                        dmg = rollDamage(enemyAttack, defense);
                         c.hp = Math.max(0, c.hp - dmg);
                         c.cp = Math.min(c.cp + 5, c.maxCp);
 
@@ -383,7 +385,7 @@ class BattleManager {
         game.originalBattleEnemies.clear();
 
         if (game.triggeredEnemy != null && !game.triggeredEnemy.isDefeated() && !game.triggeredEnemy.isBattleLocked()) {
-            Enemy newEnemy = new Enemy((int) game.triggeredEnemy.x / 40, (int) game.triggeredEnemy.y / 40);
+            Enemy newEnemy = new Enemy(game.triggeredEnemy);
             game.triggeredEnemy.setBattleLock(Long.MAX_VALUE);
             game.originalBattleEnemies.add(game.triggeredEnemy);
             game.currentEnemies.add(newEnemy);
@@ -392,7 +394,8 @@ class BattleManager {
 
         int additionalEnemyCount = (int) (Math.random() * 3);
         for (int i = 0; i < additionalEnemyCount; i++) {
-            Enemy virtualEnemy = new Enemy((int) (Math.random() * 15), (int) (Math.random() * 10));
+            Enemy virtualEnemy = EnemyFactory.createRandomForMap(
+                    game.mapIndex, (int) (Math.random() * 15), (int) (Math.random() * 10));
             game.currentEnemies.add(virtualEnemy);
             game.enemyBattleSlots.add(game.enemyBattleSlots.size());
         }

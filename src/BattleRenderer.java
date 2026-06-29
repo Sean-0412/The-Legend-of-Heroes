@@ -286,8 +286,7 @@ class BattleRenderer {
                 }
             }
 
-            g2d.setColor(Color.RED);
-            g2d.fillOval(actualEnemyX - 12, actualEnemyY - 12, 24, 24);
+            EnemyRenderer.draw(g2d, enemy, actualEnemyX, actualEnemyY);
 
             if (moonSliceAnimation) {
                 drawMoonSliceSlash(g2d, actualEnemyX, actualEnemyY);
